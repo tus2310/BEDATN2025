@@ -10,14 +10,12 @@ import jwt from "jsonwebtoken";
 import category from "./danhmuc";
 import product, { checkDuplicateVariants, Variant } from "./product";
 
-
 import qs from "qs";
 import Product from "./product";
 
 import { Socket } from "socket.io";
 const http = require("http");
 const socketIo = require("socket.io");
-
 
 var cors = require("cors");
 const fs = require("fs");
@@ -74,7 +72,7 @@ io.on("connection", (socket: Socket) => {
     // Xóa socket khỏi danh sách khi người dùng ngắt kết nối
     for (const userId in userSockets) {
       if (userSockets[userId] === socket.id) {
-        console.log(userSockets[userId])
+        console.log(userSockets[userId]);
         delete userSockets[userId];
         break;
       }
@@ -111,13 +109,6 @@ app.post(
     }
   }
 );
-
-
-
-
-
-
-
 
 // Login
 app.post("/login", async (req: Request, res: Response) => {
@@ -209,10 +200,19 @@ app.post("/register", async (req: Request, res: Response) => {
 // Thêm sản phẩm
 app.post("/product/add", async (req: Request, res: Response) => {
   try {
-    const { masp, name, img, moTa, brand, categoryID, status, variants } = req.body;
+    const { masp, name, img, moTa, brand, categoryID, status, variants } =
+      req.body;
 
     // Input validation
-    if (!masp || !name || !moTa || !brand || !categoryID || typeof status !== "boolean" || !variants) {
+    if (
+      !masp ||
+      !name ||
+      !moTa ||
+      !brand ||
+      !categoryID ||
+      typeof status !== "boolean" ||
+      !variants
+    ) {
       return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
     }
 
@@ -263,11 +263,9 @@ app.post("/product/add", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi thêm mới", error});
+    res.status(500).json({ message: "Lỗi thêm mới", error });
   }
 });
-
-
 
 // Lấy tất cả sản phẩm
 app.get("/products", async (req: Request, res: Response) => {
@@ -298,7 +296,7 @@ app.get("/product-test", async (req, res) => {
 // Lấy một sản phẩm theo ID
 app.get("/product/:id", async (req: Request, res: Response) => {
   try {
-    const product = await Product.findById(req.params.id)
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     }
@@ -334,12 +332,10 @@ app.put("/product/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Cập nhật sản phẩm thành công",
-        product: updatedProduct,
-      });
+    res.status(200).json({
+      message: "Cập nhật sản phẩm thành công",
+      product: updatedProduct,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Lỗi cập nhật sản phẩm" });
@@ -378,7 +374,8 @@ app.delete("/product/:id", async (req: Request, res: Response) => {
 // active product
 app.put("/product/:id", async (req: Request, res: Response) => {
   try {
-    const { masp, name, img, moTa, brand, categoryID, status, variants } = req.body;
+    const { masp, name, img, moTa, brand, categoryID, status, variants } =
+      req.body;
 
     // Check if product exists
     const existingProduct = await Product.findById(req.params.id);
@@ -548,13 +545,9 @@ app.delete("/product/:id", async (req: Request, res: Response) => {
 
 // gui mail
 
-
 // Vô hiệu hóa User
 
-
-
 // Kích hoạt lại người dùng
-
 
 // Thêm danh mục
 app.post("/addcategory", async (req: Request, res: Response) => {
@@ -657,8 +650,6 @@ app.get("/deactive/:id", (req, res) => {
   res.send(`Deactivating item with ID ${itemId}`);
 });
 
-
-
 app.put("/product/deactivate/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -708,7 +699,6 @@ app.put("/product/activate/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi kích hoạt lại sản phẩm" });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`Server đang lắng nghe tại cổng ${PORT}`);
