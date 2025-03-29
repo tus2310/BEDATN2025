@@ -11,7 +11,7 @@ export interface Comment extends Document {
 }
 
 const CommentSchema: Schema = new Schema({
-  id: { type: Number, unique: true }, // Tùy chọn, nếu bạn muốn có id theo cách riêng
+  id: { type: Number, unique: true },
   user: { type: String, required: true },
   text: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
