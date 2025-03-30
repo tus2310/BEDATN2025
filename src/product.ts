@@ -29,5 +29,10 @@ const Product = mongoose.model<Product, mongoose.PaginateModel<Product>>(
   "Product",
   ProductSchema
 );
-
+const VariantSchema: Schema = new Schema({
+  color: { type: String, required: true },
+  basePrice: { type: Number, required: true },
+  discount: { type: Number, default: 0 },
+  subVariants: [SubVariantSchema], // Quantity is managed here
+});
 export default Product;
