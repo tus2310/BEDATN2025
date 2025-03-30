@@ -9,10 +9,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import category from "./danhmuc";
 import product, { checkDuplicateVariants, Variant } from "./product";
+
+import { Voucher } from "./Voucher";
+
 import ChangePassword from "./ChangePassword";
+
 import qs from "qs";
 import Product from "./product";
-
+import User from "./user";
 import { Socket } from "socket.io";
 const http = require("http");
 const socketIo = require("socket.io");
