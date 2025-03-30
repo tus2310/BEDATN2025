@@ -22,6 +22,18 @@ export interface Product extends Document {
   updatedAt: Date;
 }
 
+
+const VariantSchema: Schema = new Schema(
+  {
+    size: { type: String, required: true },
+    color: { type: String, required: true }, // Added color field
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true },
+    discount: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
 ProductSchema.index({ masp: 1, name: 1 }, { unique: true });
 ProductSchema.plugin(mongoosePaginate);
 
