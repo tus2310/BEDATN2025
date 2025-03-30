@@ -341,7 +341,6 @@ app.put("/product/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi cập nhật sản phẩm" });
   }
 });
-
 app.put("/updatecategory/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
