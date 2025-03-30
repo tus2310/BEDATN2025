@@ -11,6 +11,8 @@ export interface User extends Document {
   phone: string;
   password: string;
   role: string;
+  active: boolean;
+  reason: string;
 }
 
 const UserSchema: Schema = new Schema(
@@ -29,6 +31,8 @@ const UserSchema: Schema = new Schema(
       enum: ["user", "admin", "shipper"],
       default: "user",
     },
+    active: { type: Boolean, default: true },
+    reason: { type: String, default: null },
   },
   { timestamps: true } // Thêm timestamps
 );
