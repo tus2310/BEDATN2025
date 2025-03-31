@@ -8,6 +8,8 @@ import { Uploadfile } from "./upload";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import category from "./danhmuc";
+import Tintuc from "./posts";
+import Comment from "./comment";
 import product, { checkDuplicateVariants, Variant } from "./product";
 
 import qs from "qs";
