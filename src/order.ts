@@ -15,7 +15,7 @@ export interface IOrder extends Document {
     phone: string;
     email: string;
     address: string;
-    notes?: string;
+    // notes?: string;
   };
   cancelReason: {
     reason?: string; // Lý do hủy đơn
@@ -34,7 +34,11 @@ const orderSchema = new Schema<IOrder>({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   items: [
     {
-      productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+      },
       name: { type: String, required: true },
       price: { type: Number, required: true },
       img: [{ type: String, required: true }],
@@ -43,9 +47,9 @@ const orderSchema = new Schema<IOrder>({
   ],
   amount: { type: Number, required: true },
   status: { type: String, default: "pending" },
-  paymentstatus: { 
-    type: String, 
-    default: "chưa thanh toán" 
+  paymentstatus: {
+    type: String,
+    default: "chưa thanh toán",
   },
   createdAt: { type: Date, default: Date.now },
   magiaodich: { type: String, required: false },

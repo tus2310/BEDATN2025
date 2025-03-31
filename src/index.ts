@@ -9,7 +9,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import category from "./danhmuc";
 import product, { checkDuplicateVariants, Variant } from "./product";
+
 import { Voucher } from "./Voucher";
+
+import ChangePassword from "./ChangePassword";
+
 import qs from "qs";
 import Product from "./product";
 import User from "./user";
@@ -341,7 +345,6 @@ app.put("/product/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi cập nhật sản phẩm" });
   }
 });
-
 app.put("/updatecategory/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -597,6 +600,12 @@ app.put("/category/deactivate/:id", async (req: Request, res: Response) => {
     console.error("Error deactivating category:", error);
     res.status(500).json({ message: "Lỗi khi vô hiệu hóa danh mục" });
   }
+});
+const changeLog = new ChangePassword({
+  userId,
+  oldPassword, // Có thể không lưu mật khẩu cũ để bảo mật
+  newPassword: hashedNewPassword,
+  changedBy,
 });
 
 // Kích hoạt lại danh mục
