@@ -13,6 +13,11 @@ export interface User extends Document {
   role: string;
   active: boolean;
   reason: string;
+  deactivationHistory: Array<{
+    reason: string;
+    date: Date;
+    deactivatedBy: string; // ID của admin
+  }>;
 }
 
 const UserSchema: Schema = new Schema(
@@ -33,6 +38,13 @@ const UserSchema: Schema = new Schema(
     },
     active: { type: Boolean, default: true },
     reason: { type: String, default: null },
+    deactivationHistory: [
+      {
+        reason: { type: String, required: true },
+        date: { type: Date, default: Date.now },
+        deactivatedBy: { type: String, required: true }, // ID của admin
+      },
+    ],
   },
   { timestamps: true } // Thêm timestamps
 );
