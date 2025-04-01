@@ -1,8 +1,8 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document } from "mongoose";
 
 interface IVoucher extends Document {
   code: string;
-  discountAmount: number; 
+  discountAmount: number;
   expirationDate: Date;
   isActive: boolean;
   quantity: number;
@@ -18,7 +18,6 @@ const voucherSchema = new Schema<IVoucher>({
   createdAt: { type: Date, default: Date.now },
 });
 
-const Voucher = model<IVoucher>('Voucher', voucherSchema);
+const Voucher = model<IVoucher>("Voucher", voucherSchema);
 
 export { Voucher, IVoucher };
-
