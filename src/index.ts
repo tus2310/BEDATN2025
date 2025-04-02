@@ -602,7 +602,7 @@ const changeLog = new ChangePassword({
   userId,
   oldPassword,
   newPassword: hashedNewPassword,
-  
+  changedBy,
 });
 
 // Kích hoạt lại danh mục
