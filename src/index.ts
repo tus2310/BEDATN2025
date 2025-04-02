@@ -605,7 +605,7 @@ app.put("/category/deactivate/:id", async (req: Request, res: Response) => {
 });
 const changeLog = new ChangePassword({
   userId,
-  oldPassword, // Có thể không lưu mật khẩu cũ để bảo mật
+  oldPassword,
   newPassword: hashedNewPassword,
   changedBy,
 });
