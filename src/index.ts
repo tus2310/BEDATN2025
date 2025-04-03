@@ -117,7 +117,7 @@ app.post(
 );
 
 // Login
-app.post("/login", async (req: Request, res: Response) => {
+app.post("/login", async (req: Request, res: Response) => { 
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
