@@ -8,11 +8,17 @@ import { Uploadfile } from "./upload";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import category from "./danhmuc";
+import Tintuc from "./posts";
+import Comment from "./comment";
 import product, { checkDuplicateVariants, Variant } from "./product";
+
+import { Voucher } from "./Voucher";
+
+import ChangePassword from "./ChangePassword";
 
 import qs from "qs";
 import Product from "./product";
-
+import User from "./user";
 import { Socket } from "socket.io";
 const http = require("http");
 const socketIo = require("socket.io");
@@ -341,7 +347,6 @@ app.put("/product/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi cập nhật sản phẩm" });
   }
 });
-
 app.put("/updatecategory/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -598,6 +603,12 @@ app.put("/category/deactivate/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi vô hiệu hóa danh mục" });
   }
 });
+const changeLog = new ChangePassword({
+  userId,
+  oldPassword,
+  newPassword: hashedNewPassword,
+  changedBy,
+});
 
 // Kích hoạt lại danh mục
 app.put("/category/activate/:id", async (req: Request, res: Response) => {
@@ -672,6 +683,126 @@ app.put("/product/deactivate/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error deactivating product:", error);
     res.status(500).json({ message: "Lỗi khi vô hiệu hóa sản phẩm" });
+  }
+});
+app.post("/vouchers/add", async (req: Request, res: Response) => {
+  const { code, discountAmount, expirationDate, isActive, quantity } = req.body;
+
+  try {
+    const voucher = new Voucher({
+      code,
+      discountAmount,
+      expirationDate,
+      isActive,
+      quantity,
+    });
+    await voucher.save();
+    res.status(201).json({ message: "Voucher created successfully", voucher });
+  } catch (error) {
+    res.status(400).json({ message: "Error creating voucher", error });
+  }
+});
+
+app.get("/vouchers", async (req: Request, res: Response) => {
+  try {
+    const vouchers = await Voucher.find();
+    res.json(vouchers);
+  } catch (error) {
+    console.error("Error fetching vouchers:", error);
+    res.status(500).json({ message: "Failed to retrieve vouchers" });
+  }
+});
+
+app.get("/vouchers/:id", async (req: Request, res: Response) => {
+  try {
+    const voucher = await Voucher.findById(req.params.id);
+    if (!voucher) return res.status(404).json({ message: "Voucher not found" });
+    res.status(200).json(voucher);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching voucher", error });
+  }
+});
+
+app.put("/vouchers/:id", async (req, res) => {
+  const { id } = req.params;
+  const { code, discountAmount, expirationDate, quantity, isActive } = req.body; // Get updated data from the request body
+
+  try {
+    const updatedVoucher = await Voucher.findByIdAndUpdate(
+      id,
+      { code, discountAmount, expirationDate, quantity, isActive },
+      { new: true }
+    );
+
+    if (!updatedVoucher) {
+      return res.status(404).json({ message: "Voucher not found" });
+    }
+
+    res.json(updatedVoucher);
+  } catch (error) {
+    console.error("Error updating voucher:", error);
+    res.status(500).json({ message: "Error updating voucher" });
+  }
+});
+
+app.delete("/vouchers/:id", async (req: Request, res: Response) => {
+  try {
+    const deletedVoucher = await Voucher.findByIdAndDelete(req.params.id);
+    if (!deletedVoucher)
+      return res.status(404).json({ message: "Voucher not found" });
+    res
+      .status(200)
+      .json({ message: "Voucher deleted successfully", deletedVoucher });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting voucher", error });
+  }
+});
+
+app.put("/vouchers/:id/toggle", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const voucher = await Voucher.findById(id);
+    if (!voucher) {
+      return res.status(404).json({ message: "Voucher not found" });
+    }
+
+    voucher.isActive = !voucher.isActive;
+    await voucher.save();
+
+    res.status(200).json({ message: "Voucher status updated", voucher });
+  } catch (error) {
+    console.error("Error toggling voucher status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/voucher/apply", async (req: Request, res: Response) => {
+  const { code } = req.body;
+
+  try {
+    const voucher = await Voucher.findOne({ code, isActive: true });
+
+    if (!voucher) {
+      return res
+        .status(404)
+        .json({ message: "Invalid or expired voucher code." });
+    }
+
+    if (voucher.quantity <= 0 || new Date() > voucher.expirationDate) {
+      return res.status(400).json({ message: "Voucher is no longer valid." });
+    }
+
+    // Reduce quantity and deactivate if it reaches 0
+    voucher.quantity -= 1;
+    if (voucher.quantity === 0) {
+      voucher.isActive = false;
+    }
+    await voucher.save();
+
+    res.json({ discountAmount: voucher.discountAmount });
+  } catch (error) {
+    res.status(500).json({ message: "An error occurred.", error });
   }
 });
 
