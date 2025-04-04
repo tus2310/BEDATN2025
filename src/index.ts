@@ -741,49 +741,11 @@ app.delete("/vouchers/:id", async (req: Request, res: Response) => {
   }
 });
 
-app.put("/vouchers/:id/toggle", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const voucher = await Voucher.findById(id);
-    if (!voucher) {
-      return res.status(404).json({ message: "Voucher not found" });
-    }
-
-    voucher.isActive = !voucher.isActive;
-    await voucher.save();
-
-    res.status(200).json({ message: "Voucher status updated", voucher });
-  } catch (error) {
-    console.error("Error toggling voucher status:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 app.post("/voucher/apply", async (req: Request, res: Response) => {
   const { code } = req.body;
 
   try {
     const voucher = await Voucher.findOne({ code, isActive: true });
-
-    if (!voucher) {
-      return res
-        .status(404)
-        .json({ message: "Invalid or expired voucher code." });
-    }
-
-    if (voucher.quantity <= 0 || new Date() > voucher.expirationDate) {
-      return res.status(400).json({ message: "Voucher is no longer valid." });
-    }
-
-    // Reduce quantity and deactivate if it reaches 0
-    voucher.quantity -= 1;
-    if (voucher.quantity === 0) {
-      voucher.isActive = false;
-    }
-    await voucher.save();
-
-    res.json({ discountAmount: voucher.discountAmount });
   } catch (error) {
     res.status(500).json({ message: "An error occurred.", error });
   }
