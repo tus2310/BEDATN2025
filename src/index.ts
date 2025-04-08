@@ -8,6 +8,7 @@ import { Uploadfile } from "./upload";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import category from "./danhmuc";
+import Comment from "./comment";
 import Tintuc from "./posts";
 import Comment from "./comment";
 import product, { checkDuplicateVariants, Variant } from "./product";
@@ -410,11 +411,9 @@ app.post("/cart/add", async (req: Request, res: Response) => {
 
   // Validate subVariant if provided
   if (subVariant && (!subVariant.specification || !subVariant.value)) {
-    return res
-      .status(400)
-      .json({
-        message: "SubVariant must include both specification and value",
-      });
+    return res.status(400).json({
+      message: "SubVariant must include both specification and value",
+    });
   }
 
   try {
@@ -974,7 +973,27 @@ app.put("/updatePost/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi cập nhật bài viết." });
   }
 });
+app.post("/comments", async (req, res) => {
+  try {
+    const newComment = new Comment(req.body);
+    await newComment.save();
+    res.status(201).json(newComment);
+  } catch (error) {
+    res.status(400).json({ message: "Lỗi Bạn không thể bình luận !!!" });
+  }
+});
 
+// GET để truy xuất nhận xét cho một sản phẩm cụ thể
+app.get("/comments/:productId", async (req, res) => {
+  try {
+    const comments = await Comment.find({ productId: req.params.productId });
+    res.status(200).json(comments);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi Bạn không thể truy xuất bình luận !!!" });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Server đang lắng nghe tại cổng ${PORT}`);
 });
