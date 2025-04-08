@@ -8,6 +8,7 @@ import { Uploadfile } from "./upload";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import category from "./danhmuc";
+import Comment from "./comment";
 import Tintuc from "./posts";
 import Comment from "./comment";
 import product, { checkDuplicateVariants, Variant } from "./product";
@@ -128,9 +129,8 @@ app.get("/users", async (req: Request, res: Response) => {
   }
 });
 
-
 // Login
-app.post("/login", async (req: Request, res: Response) => { 
+app.post("/login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -374,83 +374,100 @@ app.put("/updatecategory/:id", async (req: Request, res: Response) => {
 });
 
 // app.post("/cart/add",checkUserActiveStatus,  async (req: Request, res: Response) => {
-  app.post("/cart/add", async (req: Request, res: Response) => {
-    const { userId, items } = req.body;
-  
-    // Validate userId
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid userId format" });
-    }
-  
-    // Validate items array
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Items array cannot be empty" });
-    }
-  
-    // Destructure the first item (assuming single item addition)
-    const { productId, name, price, img, quantity, color, subVariant } = items[0];
-  
-    // Validate productId
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({ message: "Invalid productId format" });
-    }
-  
-    // Validate quantity
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      return res.status(400).json({ message: "Quantity must be a positive integer" });
-    }
-  
-    // Validate required fields
-    if (!name || !price || !img || !color) {
-      return res.status(400).json({ message: "Missing required fields: name, price, img, or color" });
-    }
-  
-    // Validate subVariant if provided
-    if (subVariant && (!subVariant.specification || !subVariant.value)) {
-      return res.status(400).json({ message: "SubVariant must include both specification and value" });
-    }
-  
-    try {
-      let cart = await Cart.findOne({ userId });
-  
-      if (cart) {
-        // Check for existing item with same productId, color, and subVariant
-        const productIndex = cart.items.findIndex((p) => {
-          const sameProduct = p.productId.toString() === productId;
-          const sameColor = p.color === color;
-          const sameSubVariant =
-            subVariant && p.subVariant
-              ? p.subVariant.specification === subVariant.specification &&
-                p.subVariant.value === subVariant.value
-              : !subVariant && !p.subVariant; // Both null/undefined
-          return sameProduct && sameColor && sameSubVariant;
+app.post("/cart/add", async (req: Request, res: Response) => {
+  const { userId, items } = req.body;
+
+  // Validate userId
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId format" });
+  }
+
+  // Validate items array
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: "Items array cannot be empty" });
+  }
+
+  // Destructure the first item (assuming single item addition)
+  const { productId, name, price, img, quantity, color, subVariant } = items[0];
+
+  // Validate productId
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    return res.status(400).json({ message: "Invalid productId format" });
+  }
+
+  // Validate quantity
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return res
+      .status(400)
+      .json({ message: "Quantity must be a positive integer" });
+  }
+
+  // Validate required fields
+  if (!name || !price || !img || !color) {
+    return res
+      .status(400)
+      .json({ message: "Missing required fields: name, price, img, or color" });
+  }
+
+  // Validate subVariant if provided
+  if (subVariant && (!subVariant.specification || !subVariant.value)) {
+    return res.status(400).json({
+      message: "SubVariant must include both specification and value",
+    });
+  }
+
+  try {
+    let cart = await Cart.findOne({ userId });
+
+    if (cart) {
+      // Check for existing item with same productId, color, and subVariant
+      const productIndex = cart.items.findIndex((p) => {
+        const sameProduct = p.productId.toString() === productId;
+        const sameColor = p.color === color;
+        const sameSubVariant =
+          subVariant && p.subVariant
+            ? p.subVariant.specification === subVariant.specification &&
+              p.subVariant.value === subVariant.value
+            : !subVariant && !p.subVariant; // Both null/undefined
+        return sameProduct && sameColor && sameSubVariant;
+      });
+
+      if (productIndex > -1) {
+        return res.status(400).json({
+          message:
+            "This product with the same color and sub-variant is already in the cart.",
         });
-  
-        if (productIndex > -1) {
-          return res.status(400).json({
-            message: "This product with the same color and sub-variant is already in the cart.",
-          });
-        } else {
-          cart.items.push({ productId, name, price, img, quantity, color, subVariant });
-        }
-  
-        cart = await cart.save();
-        return res.status(200).json(cart);
       } else {
-        // Create new cart if none exists
-        const newCart = await Cart.create({
-          userId,
-          items: [{ productId, name, price, img, quantity, color, subVariant }],
+        cart.items.push({
+          productId,
+          name,
+          price,
+          img,
+          quantity,
+          color,
+          subVariant,
         });
-  
-        return res.status(201).json(newCart);
       }
-    } catch (error: any) {
-      console.error("Error adding to cart:", error);
-      res.status(500).json({ message: "Error adding to cart", error: error.message });
+
+      cart = await cart.save();
+      return res.status(200).json(cart);
+    } else {
+      // Create new cart if none exists
+      const newCart = await Cart.create({
+        userId,
+        items: [{ productId, name, price, img, quantity, color, subVariant }],
+      });
+
+      return res.status(201).json(newCart);
     }
-  });
-  
+  } catch (error: any) {
+    console.error("Error adding to cart:", error);
+    res
+      .status(500)
+      .json({ message: "Error adding to cart", error: error.message });
+  }
+});
+
 app.delete("/product/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -866,7 +883,117 @@ app.put("/product/activate/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi kích hoạt lại sản phẩm" });
   }
 });
+app.post("/posts/create", async (req: Request, res: Response) => {
+  const { title, content, descriptions, img } = req.body;
+  try {
+    if (title.length === 0) {
+      return res.status(403).json({
+        message: "Tiêu đề bài viết không được để trống",
+      });
+    }
 
+    if (content.length === 0) {
+      return res.status(403).json({
+        message: "Nội dung bài viết không được để trống",
+      });
+    }
+
+    // Xử lí ảnh bài viết
+
+    // -------------------
+
+    const newTintuc = await Tintuc.create({
+      title,
+      content,
+      descriptions,
+      img,
+    });
+
+    if (!newTintuc) {
+      return res.status(403).json({
+        message: "Thêm bài viết không thành công!",
+      });
+    }
+
+    return res.status(200).json({
+      data: newTintuc,
+      message: "Thêm bài viết thành công!",
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to retrieve orders", error });
+  }
+});
+app.delete("/posts/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    // Tìm và xóa bài viết theo ID
+    const deletedPost = await Tintuc.findByIdAndDelete(id);
+
+    if (!deletedPost) {
+      return res.status(404).json({ message: "Không tìm thấy bài viết" });
+    }
+
+    res.status(200).json({
+      message: "Xóa bài viết thành công",
+      deletedPost,
+    });
+  } catch (error) {
+    console.error("Lỗi khi xóa bài viết:", error);
+    res.status(500).json({ message: "Lỗi máy chủ", error });
+  }
+});
+app.put("/updatePost/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra ID hợp lệ
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID không hợp lệ." });
+    }
+
+    // Tiến hành cập nhật
+    const updatedPost = await Tintuc.findByIdAndUpdate(
+      id,
+      req.body, // Dữ liệu cần cập nhật
+      { new: true, runValidators: true } // Tùy chọn trả về tài liệu mới và xác thực
+    );
+
+    // Kiểm tra nếu không tìm thấy bài viết
+    if (!updatedPost) {
+      return res.status(404).json({ message: "Không tìm thấy bài viết." });
+    }
+
+    res.status(200).json(updatedPost);
+  } catch (error) {
+    console.error("Lỗi khi cập nhật bài viết:", error);
+    res.status(500).json({ message: "Lỗi khi cập nhật bài viết." });
+  }
+});
+app.post("/comments", async (req, res) => {
+  try {
+    const newComment = new Comment(req.body);
+    await newComment.save();
+    res.status(201).json(newComment);
+  } catch (error) {
+    res.status(400).json({ message: "Lỗi Bạn không thể bình luận !!!" });
+  }
+});
+
+// GET để truy xuất nhận xét cho một sản phẩm cụ thể
+app.get("/comments/:productId", async (req, res) => {
+  try {
+    const comments = await Comment.find({ productId: req.params.productId });
+    res.status(200).json(comments);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi Bạn không thể truy xuất bình luận !!!" });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Server đang lắng nghe tại cổng ${PORT}`);
 });
