@@ -794,6 +794,24 @@ app.put("/product/deactivate/:id", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/vouchers/add", async (req: Request, res: Response) => {
+  const { code, discountAmount, expirationDate, isActive, quantity } = req.body;
+
+  try {
+    const voucher = new Voucher({
+      code,
+      discountAmount,
+      expirationDate,
+      isActive,
+      quantity,
+    });
+    await voucher.save();
+    res.status(201).json({ message: "Voucher created successfully", voucher });
+  } catch (error) {
+    res.status(400).json({ message: "Error creating voucher", error });
+  }
+});
+
 app.get("/vouchers", async (req: Request, res: Response) => {
   try {
     const vouchers = await Voucher.find();
