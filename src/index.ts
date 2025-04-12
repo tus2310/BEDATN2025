@@ -876,6 +876,72 @@ app.post("/voucher/apply", async (req: Request, res: Response) => {
     res.status(500).json({ message: "An error occurred.", error });
   }
 });
+app.get("/product-test", async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const options = {
+      page: Number(page),
+      limit: Number(limit),
+      populate: "category",
+    };
+
+    const products = await Product.paginate({}, options);
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to retrieve products", error });
+  }
+});
+// Lấy một sản phẩm theo ID
+app.get("/product/:id", async (req: Request, res: Response) => {
+  try {
+    const product = await Product.findById(req.params.id)
+    if (!product) {
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    }
+    res.status(200).json(product);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi lấy sản phẩm" });
+  }
+});
+
+// Update a product by ID
+app.put("/product/:id", async (req: Request, res: Response) => {
+  try {
+    const { masp, name, img, moTa, categoryID, materialID, status, variants } =
+      req.body;
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      {
+        masp,
+        name,
+        img,
+        moTa,
+        category: categoryID,
+        material: materialID,
+        status,
+        variants,
+      },
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "Cập nhật sản phẩm thành công",
+        product: updatedProduct,
+      });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi cập nhật sản phẩm" });
+  }
+});
+
 
 app.put("/product/activate/:id", async (req: Request, res: Response) => {
   try {
