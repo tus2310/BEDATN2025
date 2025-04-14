@@ -866,6 +866,25 @@ app.delete("/vouchers/:id", async (req: Request, res: Response) => {
   }
 });
 
+app.put("/vouchers/:id/toggle", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const voucher = await Voucher.findById(id);
+    if (!voucher) {
+      return res.status(404).json({ message: "Voucher not found" });
+    }
+
+    voucher.isActive = !voucher.isActive;
+    await voucher.save();
+
+    res.status(200).json({ message: "Voucher status updated", voucher });
+  } catch (error) {
+    console.error("Error toggling voucher status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 app.post("/voucher/apply", async (req: Request, res: Response) => {
   const { code } = req.body;
 
