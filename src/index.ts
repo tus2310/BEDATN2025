@@ -920,6 +920,40 @@ app.put("/product/activate/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi kích hoạt lại sản phẩm" });
   }
 });
+app.get("/posts", async (req: Request, res: Response) => {
+  try {
+    const query = await Tintuc.find();
+
+    if (query.length === 0) {
+      return res.status(404).json({
+        message: "Chưa có bài viết nào!",
+      });
+    }
+
+    return res.status(200).json(query);
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to retrieve orders", error });
+  }
+});
+app.get("/post/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const post = await Tintuc.findById(id); // Thay 'product' bằng 'Tintuc'
+
+    if (!post) {
+      return res.status(404).json({ message: "Không tìm thấy bài viết" });
+    }
+
+    res.json(post);
+  } catch (error) {
+    console.error("Lỗi khi lấy bài viết:", error);
+    res.status(500).json({ message: "Lỗi khi lấy thông tin tin tức" });
+  }
+});
+
 app.post("/posts/create", async (req: Request, res: Response) => {
   const { title, content, descriptions, img } = req.body;
   try {
@@ -936,9 +970,6 @@ app.post("/posts/create", async (req: Request, res: Response) => {
     }
 
     // Xử lí ảnh bài viết
-
-    // -------------------
-
     const newTintuc = await Tintuc.create({
       title,
       content,
