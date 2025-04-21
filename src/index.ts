@@ -655,14 +655,6 @@ app.delete("/product/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi xóa SP" });
   }
 });
-
-// gui mail
-
-// Vô hiệu hóa User
-
-// Kích hoạt lại người dùng
-
-// Thêm danh mục
 app.post("/addcategory", async (req: Request, res: Response) => {
   try {
     const newCategory = new category({ ...req.body, status: "active" });
