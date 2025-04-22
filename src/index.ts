@@ -15,6 +15,7 @@ import Tintuc from "./posts";
 import Comment from "./comment";
 import crypto from "crypto";
 import { createVNPayPaymentUrl, sortObject } from "./service/VNPay";
+import qs from "qs";
 import Product from "./product";
 
 import ChangePassword from "./ChangePassword";
@@ -808,6 +809,132 @@ app.delete("/product/:id", async (req: Request, res: Response) => {
   }
 });
 
+// Thêm danh mục
+app.post("/addcategory", async (req: Request, res: Response) => {
+  try {
+    const newCategory = new category({ ...req.body, status: "active" });
+    await newCategory.save();
+    res.status(201).json({
+      message: "Thêm Category thành công",
+      category: newCategory,
+      status: 200,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Lỗi thêm mới danh mục" });
+  }
+});
+
+// Vô hiệu hóa danh mục
+app.put("/category/deactivate/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Deactivate the category
+    const categoryToUpdate = await category.findByIdAndUpdate(
+      id,
+      { status: "deactive" },
+      { new: true }
+    );
+
+    if (!categoryToUpdate) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy danh mục để vô hiệu hóa" });
+    }
+
+    // Deactivate all products in the category
+    const updatedProducts = await product.updateMany(
+      { category: id }, // Tìm tất cả sản phẩm có category trùng với id danh mục
+      { status: false } // Đặt trạng thái của sản phẩm thành 'false'
+    );
+
+    res.json({
+      message: "Danh mục và các sản phẩm liên quan đã được vô hiệu hóa",
+      category: categoryToUpdate,
+    });
+  } catch (error) {
+    console.error("Error deactivating category:", error);
+    res.status(500).json({ message: "Lỗi khi vô hiệu hóa danh mục" });
+  }
+});
+
+// Kích hoạt lại danh mục
+app.put("/category/activate/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Activate the category
+    const categoryToUpdate = await category.findByIdAndUpdate(
+      id,
+      { status: "active" },
+      { new: true }
+    );
+
+    if (!categoryToUpdate) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy danh mục để kích hoạt lại" });
+    }
+
+    // Activate all products in the category
+    const updatedProducts = await product.updateMany(
+      { category: id }, // Tìm tất cả sản phẩm có category trùng với id danh mục
+      { status: true } // Đặt trạng thái của sản phẩm thành 'true'
+    );
+
+    res.json({
+      message: "Danh mục và các sản phẩm liên quan đã được kích hoạt lại",
+      category: categoryToUpdate,
+    });
+  } catch (error) {
+    console.error("Error activating category:", error);
+    res.status(500).json({ message: "Lỗi khi kích hoạt lại danh mục" });
+  }
+});
+
+// Lấy danh mục
+app.get("/category", async (req: Request, res: Response) => {
+  try {
+    const categories = await category.find({ status: "active" }); // Chỉ lấy danh mục hoạt động
+    res.json(categories);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Lỗi khi lấy thông tin danh mục" });
+  }
+});
+
+app.get("/deactive/:id", (req, res) => {
+  const itemId = req.params.id;
+  // Gọi hàm để deactive item với id là itemId
+  res.send(`Deactivating item with ID ${itemId}`);
+});
+
+app.put("/product/deactivate/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const productToUpdate = await product.findByIdAndUpdate(
+      id,
+      { status: false },
+      { new: true }
+    );
+
+    if (!productToUpdate) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy sản phẩm để vô hiệu hóa" });
+    }
+
+    res.json({
+      message: "Sản phẩm đã được vô hiệu hóa",
+      product: productToUpdate,
+    });
+  } catch (error) {
+    console.error("Error deactivating product:", error);
+    res.status(500).json({ message: "Lỗi khi vô hiệu hóa sản phẩm" });
+  }
+});
+
 app.put("/product/activate/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -1493,6 +1620,7 @@ app.post(
   }
 );
 
+// POST để thêm mới bình luận
 app.post("/comments", async (req, res) => {
   try {
     const newComment = new Comment(req.body);
