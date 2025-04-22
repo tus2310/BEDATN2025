@@ -809,6 +809,120 @@ app.delete("/product/:id", async (req: Request, res: Response) => {
   }
 });
 
+// gui mail
+async function sendDeactivationEmail(userEmail: string, reason: string) {
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: "Beautiful House Admin",
+    to: userEmail,
+    subject: "Tài khoản của bạn đã bị vô hiệu hóa",
+    text: `Chào bạn,
+
+Tài khoản của bạn đã bị vô hiệu hóa vì lý do: ${reason}.
+Nếu bạn có thắc mắc, vui lòng liên hệ với chúng tôi qua Email : fptdatn2025@gmail.com để khôi phục Email.
+
+Trân trọng,
+`,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+// Vô hiệu hóa User
+app.put("/user/deactivate/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ message: "Lý do vô hiệu hóa là bắt buộc" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { active: false, reason },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    // Gửi email thông báo
+    try {
+      await sendDeactivationEmail(user.email, reason);
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      // Không trả về lỗi 500 nếu gửi email không thành công, nhưng có thể log lại
+    }
+
+    // Notify via WebSocket
+    const socketId = userSockets[user._id];
+    if (socketId) {
+      io.to(socketId).emit("kicked", {
+        message: "Tài khoản của bạn đã bị vô hiệu hóa.",
+      });
+      delete userSockets[user._id];
+    }
+
+    // Send response to frontend to clear session storage
+    res.json({
+      message: "Người dùng đã được vô hiệu hóa, vui lòng đăng nhập lại.",
+      logout: true, // Thêm cờ để chỉ ra rằng người dùng nên đăng xuất
+    });
+  } catch (error) {
+    console.error("Error deactivating user:", error);
+    res.status(500).json({ message: "Lỗi khi vô hiệu hóa người dùng" });
+  }
+});
+
+app.get("/user/deactivation-history", async (req: Request, res: Response) => {
+  try {
+    const history = await DeactivationHistory.find()
+      .populate("userId deactivatedBy", "name email")
+      .exec();
+    res.json(history);
+  } catch (error) {
+    console.error("Error fetching deactivation history:", error);
+    res.status(500).json({ message: "Lỗi khi lấy lịch sử vô hiệu hóa" });
+  }
+});
+// Kích hoạt lại người dùng
+app.put("/user/activate/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra ID hợp lệ
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID không hợp lệ." });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { active: true, reason: null }, // Xóa lý do khi kích hoạt
+      { new: true }
+    );
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy người dùng để kích hoạt lại." });
+    }
+
+    res.json({ message: "Người dùng đã được kích hoạt lại", user });
+  } catch (error) {
+    console.error("Error activating user:", error);
+    res.status(500).json({ message: "Lỗi khi kích hoạt lại người dùng." });
+  }
+});
+
 // Thêm danh mục
 app.post("/addcategory", async (req: Request, res: Response) => {
   try {
