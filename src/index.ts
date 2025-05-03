@@ -763,24 +763,18 @@ app.get("/category/:id", async (req: Request, res: Response) => {
 });
 
 //  Categoty : Post
-app.post("/category", async (req: Request, res: Response) => {
+app.post("/addcategory", async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ message: "Tên danh mục là bắt buộc" });
-    }
-
-    const newCategory = new category({ name });
-    const savedCategory = await newCategory.save();
-
+    const newCategory = new category(req.body);
+    await newCategory.save();
     res.status(201).json({
-      message: "Tạo danh mục thành công",
-      category: savedCategory,
+      massege: "Thêm Category thành công",
+      category: newCategory,
+      status: 200,
     });
   } catch (error) {
-    console.error("Lỗi khi tạo danh mục:", error);
-    res.status(500).json({ message: "Lỗi khi tạo danh mục" });
+    console.log(error);
+    res.status(500).json({ message: "Lỗi thêm mới danh mục" });
   }
 });
 
