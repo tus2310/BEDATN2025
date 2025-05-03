@@ -2225,7 +2225,7 @@ app.get("/user/:id/status", async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server đang lắng nghe tại cổng ${PORT}`);
+  console.log(`Cổ Đông FPT đang lắng nghe: ${PORT}`);
 });
 
 // Ngân hàng	NCB

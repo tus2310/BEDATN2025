@@ -1,31 +1,42 @@
+import express, { Request, Response } from "express";
 import Cart from "../cart";
-import Product from "../product";
 
-export const validateCartPrices = async (userId: string): Promise<boolean> => {
-  // Điền thông tin chi tiết về sản phẩm vào giỏ hàng
+// Utility function to validate cart items (price and name)
+export const validateCartItems = async (
+  userId: string
+): Promise<{ hasChanged: boolean; reason: string }> => {
+  // Populate cart with product details
   const cart = await Cart.findOne({ userId }).populate("items.productId");
 
-  if (!cart) throw new Error("Cart not found");
-
-  let hasPriceChanged = false;
+  if (!cart) {
+    return { hasChanged: false, reason: "Cart not found" };
+  }
 
   for (const item of cart.items) {
-    const product = item.productId as any; // Khẳng định kiểu; cải thiện bằng cách nhập đúng
-    if (!product) throw new Error(`Product not found: ${item.productId}`);
+    const product = item.productId as any; // Type assertion; improve with proper typing
+    if (!product) {
+      return {
+        hasChanged: true,
+        reason: `Product not found: ${item.productId}`,
+      };
+    }
 
-    // Tìm biến thể tương ứng trong sản phẩm theo màu
+    // Find the corresponding variant in the product by color
     const variant = product.variants.find((v: any) => v.color === item.color);
 
     if (!variant) {
-      hasPriceChanged = true;
-      break;
+      return {
+        hasChanged: true,
+        reason: `Variant not found for product: ${item.productId}`,
+      };
     }
 
-    // Tính tổng giá dựa trên việc subVariant có tồn tại hay không
+    // --- Check Price Change ---
+    // Calculate total price based on whether subVariant exists
     let calculatedPrice = variant.basePrice;
 
     if (item.subVariant) {
-      // Xử lý subVariant được định nghĩa một cách an toàn
+      // Safely handle subVariant being defined
       const subVariant = variant.subVariants.find(
         (sv: any) =>
           sv.specification === item.subVariant?.specification &&
@@ -33,27 +44,66 @@ export const validateCartPrices = async (userId: string): Promise<boolean> => {
       );
 
       if (!subVariant) {
-        hasPriceChanged = true;
-        break;
+        return {
+          hasChanged: true,
+          reason: "Sub-variant not found. The cart has been reset.",
+        };
       }
 
-      // Thêm additionalPrice từ subVariant
+      // Add additionalPrice from subVariant
       calculatedPrice += subVariant.additionalPrice || 0;
-    } else {
-      // Nếu không có subVariant nào trong mục giỏ hàng, hãy đảm bảo biến thể sản phẩm không có giá subVariant nào ảnh hưởng đến nó
-      // Giả sử basePrice là yếu tố giá duy nhất khi không chọn subVariant
     }
 
-    // Áp dụng chiết khấu nếu có
+    // Apply discount if it exists
     const discount = variant.discount || 0;
     calculatedPrice -= discount;
 
-    // So sánh giá đã tính toán với giá của mục giỏ hàng
+    // Compare calculated price with cart item's price
     if (calculatedPrice !== item.price) {
-      hasPriceChanged = true;
-      break;
+      return {
+        hasChanged: true,
+        reason: "Product prices have changed. The cart has been reset.",
+      };
+    }
+
+    // --- Check Variant Name Change ---
+    // Construct the variant name in the cart
+    const cartVariantName = item.subVariant
+      ? `${item.subVariant.specification}: ${item.subVariant.value}`
+      : item.color;
+
+    // Construct the current variant name from the product data
+    const currentSubVariant = item.subVariant
+      ? variant.subVariants.find(
+          (sv: any) =>
+            sv.specification === item.subVariant?.specification &&
+            sv.value === item.subVariant?.value
+        )
+      : null;
+
+    const currentVariantName = currentSubVariant
+      ? `${currentSubVariant.specification}: ${currentSubVariant.value}`
+      : variant.color;
+
+    // Compare the variant names
+    if (cartVariantName !== currentVariantName) {
+      return {
+        hasChanged: true,
+        reason: "Variant names have changed. The cart has been reset.",
+      };
     }
   }
 
-  return hasPriceChanged;
+  return { hasChanged: false, reason: "" };
 };
+export const calculateItemPrice = (variant: any, subVariant?: any): number => {
+  let price = Number(variant.basePrice) || 0;
+  if (subVariant) {
+    price += Number(subVariant.additionalPrice) || 0;
+  }
+  const discount = Number(variant.discount) || 0;
+  price -= discount;
+  return price;
+};
+
+// /checkout endpoint

@@ -4,7 +4,7 @@ interface IVoucher extends Document {
   code: string;
   discountAmount: number;
   expirationDate: Date;
-  // isActive: boolean;
+  isActive: boolean;
   quantity: number;
   createdAt: Date;
 }
