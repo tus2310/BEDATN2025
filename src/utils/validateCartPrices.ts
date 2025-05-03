@@ -24,13 +24,6 @@ export const validateCartItems = async (
     // Find the corresponding variant in the product by color
     const variant = product.variants.find((v: any) => v.color === item.color);
 
-    if (!variant) {
-      return {
-        hasChanged: true,
-        reason: `Variant not found for product: ${item.productId}`,
-      };
-    }
-
     // --- Check Price Change ---
     // Calculate total price based on whether subVariant exists
     let calculatedPrice = variant.basePrice;
@@ -47,6 +40,12 @@ export const validateCartItems = async (
         return {
           hasChanged: true,
           reason: "Sub-variant not found. The cart has been reset.",
+        };
+      }
+      if (!subVariant) {
+        return {
+          hasChanged: true,
+          reason: "Sub-variant not found. t.",
         };
       }
 
@@ -86,6 +85,12 @@ export const validateCartItems = async (
       : variant.color;
 
     // Compare the variant names
+    if (cartVariantName !== currentVariantName) {
+      return {
+        hasChanged: true,
+        reason: "Variant names have changed. The cart has been reset.",
+      };
+    }
     if (cartVariantName !== currentVariantName) {
       return {
         hasChanged: true,
