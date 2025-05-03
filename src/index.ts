@@ -377,36 +377,90 @@ app.get("/Cart/:id", async (req: Request, res: Response) => {
 });
 
 // Login
-document.getElementById('login-form').addEventListener('submit', function (e) {
-  e.preventDefault(); // Ngăn reload trang
+app.post("/login", async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
 
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-
-  fetch('https://your-api-url.com/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      username: username,
-      password: password
-    })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      document.getElementById('response').innerText = "Đăng nhập thành công!";
-      // Có thể lưu token vào localStorage/sessionStorage nếu cần
-      // localStorage.setItem("token", data.token);
-    } else {
-      document.getElementById('response').innerText = "Sai tên đăng nhập hoặc mật khẩu!";
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found!",
+      });
     }
-  })
-  .catch(error => {
-    console.error('Lỗi:', error);
-    document.getElementById('response').innerText = "Có lỗi xảy ra khi đăng nhập.";
-  });
+
+    if (!user.active) {
+      return res.status(403).json({
+        message: "Account is disabled. Please contact support.",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid password!" });
+    }
+
+    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
+      expiresIn: process.env.EXPIRES_TOKEN,
+    });
+
+    if (user.role === "admin") {
+      res.json({
+        message: "Welcome Admin!",
+        id: user._id,
+        info: {
+          email: user.email,
+          role: user.role,
+          name: user.name,
+        },
+        token: token,
+        expiresIn: process.env.EXPIRES_TOKEN,
+      });
+    } else if (user.role === "shipper") {
+      res.json({
+        message: "Welcome Shipper!",
+        id: user._id,
+        info: {
+          email: user.email,
+          role: user.role,
+          name: user.name,
+        },
+        token: token,
+        expiresIn: process.env.EXPIRES_TOKEN,
+      });
+    } else {
+      res.json({
+        message: "Welcome User!",
+        id: user._id,
+        info: {
+          email: user.email,
+          role: user.role,
+          name: user.name,
+        },
+        token: token,
+        expiresIn: process.env.EXPIRES_TOKEN,
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error logging in!" });
+  }
+});
+
+app.post("/register", async (req: Request, res: Response) => {
+  try {
+    const { name, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ name, email, password: hashedPassword });
+    await newUser.save();
+    res.status(201).json({
+      message: "Thêm người dùng thành công",
+      user: newUser,
+      status: 200,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi khi tạo người dùng mới" });
+  }
 });
 
 // Thêm sản phẩm
@@ -709,18 +763,24 @@ app.get("/category/:id", async (req: Request, res: Response) => {
 });
 
 //  Categoty : Post
-app.post("/addcategory", async (req: Request, res: Response) => {
+app.post("/category", async (req: Request, res: Response) => {
   try {
-    const newCategory = new category(req.body);
-    await newCategory.save();
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: "Tên danh mục là bắt buộc" });
+    }
+
+    const newCategory = new category({ name });
+    const savedCategory = await newCategory.save();
+
     res.status(201).json({
-      massege: "Thêm Category thành công",
-      category: newCategory,
-      status: 200,
+      message: "Tạo danh mục thành công",
+      category: savedCategory,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Lỗi thêm mới danh mục" });
+    console.error("Lỗi khi tạo danh mục:", error);
+    res.status(500).json({ message: "Lỗi khi tạo danh mục" });
   }
 });
 
