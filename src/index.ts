@@ -23,7 +23,7 @@ import { Socket } from "socket.io";
 import DeactivationHistory from "./DeactivationHistory";
 import { checkUserActiveStatus } from "./middleware/Kickuser";
 import { Voucher } from "./Voucher";
-import { validateCartPrices } from "./utils/validateCartPrices";
+import { validateCartItems } from "./utils/validateCartPrices";
 const http = require("http");
 const socketIo = require("socket.io");
 
@@ -2195,7 +2195,7 @@ app.post("/checkout", async (req, res) => {
   const { userId } = req.body;
 
   try {
-    const hasPriceChanged = await validateCartPrices(userId);
+    const hasPriceChanged = await validateCartItems(userId);
 
     if (hasPriceChanged) {
       await Cart.updateOne({ userId }, { items: [] });
