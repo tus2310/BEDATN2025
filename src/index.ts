@@ -1028,8 +1028,11 @@ router.post("/api/orders", async (req: Request, res: Response) => {
       if (!product) {
         return res.status(404).json({
           message: `Sản phẩm không tồn tại: ${item.productId}`,
-        });
-      }
+        })
+        if (!product) {
+          return res.status(404).json({
+            message: `Sản phẩm không tồn tại: ${item.productId}`,
+          });
 
       // Find the variant by color
       const variant = product.variants.find((v) => v.color === item.color);
