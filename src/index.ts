@@ -1443,23 +1443,6 @@ app.post("/create-payment", async (req: Request, res: Response) => {
     // });
     // console.log(order, "order");
 
-    const paymentUrl = createVNPayPaymentUrl({
-      Id: userId,
-      customerDetails: customerDetails,
-      items: Items,
-      amount: amount,
-      bankCode,
-      req,
-    });
-    console.log("Payment URL generated:", paymentUrl);
-
-    return res.status(200).json({ paymentUrl });
-  } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({ message: "Có lỗi xảy ra, vui lòng thử lại" });
-  }
-});
-
 const vnp_TmnCode = process.env.VNP_TMNCODE || "6KV33Z7O";
 const vnp_HashSecret =
   process.env.VNP_HASHSECRET || "HID072I1H7DJ6HO5O92JMV2WX2HMDQRD";
@@ -1468,33 +1451,33 @@ let vnp_Url: any =
 const vnp_ReturnUrl =
   process.env.VNP_RETURNURL || "http://localhost:3000/success";
 
-app.get("/vnpay_return", function (req, res, next) {
-  let vnp_Params = req.query;
+// app.get("/vnpay_return", function (req, res, next) {
+//   let vnp_Params = req.query;
 
-  let secureHash = vnp_Params["vnp_SecureHash"];
+//   let secureHash = vnp_Params["vnp_SecureHash"];
 
-  delete vnp_Params["vnp_SecureHash"];
-  delete vnp_Params["vnp_SecureHashType"];
+//   delete vnp_Params["vnp_SecureHash"];
+//   delete vnp_Params["vnp_SecureHashType"];
 
-  vnp_Params = sortObject(vnp_Params);
+//   vnp_Params = sortObject(vnp_Params);
 
-  let config = require("config");
-  let tmnCode = vnp_TmnCode;
-  let secretKey = vnp_TmnCode;
+//   let config = require("config");
+//   let tmnCode = vnp_TmnCode;
+//   let secretKey = vnp_TmnCode;
 
-  let querystring = require("qs");
-  let signData = querystring.stringify(vnp_Params, { encode: false });
-  let crypto = require("crypto");
-  let hmac = crypto.createHmac("sha512", secretKey);
-  let signed = hmac.update(new Buffer(signData, "utf-8")).digest("hex");
-  console.log("tsest vpay", vnp_Params["vnp_ResponseCode"]);
+//   let querystring = require("qs");
+//   let signData = querystring.stringify(vnp_Params, { encode: false });
+//   let crypto = require("crypto");
+//   let hmac = crypto.createHmac("sha512", secretKey);
+//   let signed = hmac.update(new Buffer(signData, "utf-8")).digest("hex");
+//   console.log("tsest vpay", vnp_Params["vnp_ResponseCode"]);
 
-  if (secureHash === signed) {
-    res.render("success", { code: vnp_Params["vnp_ResponseCode"] });
-  } else {
-    res.render("success", { code: "97" });
-  }
-});
+//   if (secureHash === signed) {
+//     res.render("success", { code: vnp_Params["vnp_ResponseCode"] });
+//   } else {
+//     res.render("success", { code: "97" });
+//   }
+// });
 
 app.post("/order/confirm", async (req: Request, res: Response) => {
   const { userId, items, amount, paymentMethod, customerDetails } = req.body;
