@@ -377,90 +377,36 @@ app.get("/Cart/:id", async (req: Request, res: Response) => {
 });
 
 // Login
-app.post("/login", async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+document.getElementById('login-form').addEventListener('submit', function (e) {
+  e.preventDefault(); // Ngăn reload trang
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found!",
-      });
-    }
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
 
-    if (!user.active) {
-      return res.status(403).json({
-        message: "Account is disabled. Please contact support.",
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid password!" });
-    }
-
-    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
-      expiresIn: process.env.EXPIRES_TOKEN,
-    });
-
-    if (user.role === "admin") {
-      res.json({
-        message: "Welcome Admin!",
-        id: user._id,
-        info: {
-          email: user.email,
-          role: user.role,
-          name: user.name,
-        },
-        token: token,
-        expiresIn: process.env.EXPIRES_TOKEN,
-      });
-    } else if (user.role === "shipper") {
-      res.json({
-        message: "Welcome Shipper!",
-        id: user._id,
-        info: {
-          email: user.email,
-          role: user.role,
-          name: user.name,
-        },
-        token: token,
-        expiresIn: process.env.EXPIRES_TOKEN,
-      });
+  fetch('https://your-api-url.com/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: username,
+      password: password
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('response').innerText = "Đăng nhập thành công!";
+      // Có thể lưu token vào localStorage/sessionStorage nếu cần
+      // localStorage.setItem("token", data.token);
     } else {
-      res.json({
-        message: "Welcome User!",
-        id: user._id,
-        info: {
-          email: user.email,
-          role: user.role,
-          name: user.name,
-        },
-        token: token,
-        expiresIn: process.env.EXPIRES_TOKEN,
-      });
+      document.getElementById('response').innerText = "Sai tên đăng nhập hoặc mật khẩu!";
     }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error logging in!" });
-  }
-});
-
-app.post("/register", async (req: Request, res: Response) => {
-  try {
-    const { name, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
-    await newUser.save();
-    res.status(201).json({
-      message: "Thêm người dùng thành công",
-      user: newUser,
-      status: 200,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Lỗi khi tạo người dùng mới" });
-  }
+  })
+  .catch(error => {
+    console.error('Lỗi:', error);
+    document.getElementById('response').innerText = "Có lỗi xảy ra khi đăng nhập.";
+  });
 });
 
 // Thêm sản phẩm
