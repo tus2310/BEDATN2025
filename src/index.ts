@@ -1217,6 +1217,9 @@ app.put("/updatePost/:id", async (req: Request, res: Response) => {
     if (!updatedPost) {
       return res.status(404).json({ message: "Không tìm thấy bài viết." });
     }
+    if (updatedPost) {
+      return res.status(404).json({ message: "bài viết ko tồn tại ." });
+    }
 
     res.status(200).json(updatedPost);
   } catch (error) {
