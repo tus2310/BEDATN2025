@@ -1321,33 +1321,33 @@ app.put("/orders-list/:orderId", async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ" });
   }
 });
-app.get("/orders/:orderId", async (req: Request, res: Response) => {
-  const { orderId } = req.params;
+// app.get("/orders/:orderId", async (req: Request, res: Response) => {
+//   const { orderId } = req.params;
 
-  try {
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({ message: "Invalid order ID format" });
-    }
+//   try {
+//     if (!mongoose.Types.ObjectId.isValid(orderId)) {
+//       return res.status(400).json({ message: "Invalid order ID format" });
+//     }
 
-    const order = await Order.findById(orderId)
-      .populate("items.productId", "name price img")
-      .exec();
+//     const order = await Order.findById(orderId)
+//       .populate("items.productId", "name price img")
+//       .exec();
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
+//     if (!order) {
+//       return res.status(404).json({ message: "Order not found" });
+//     }
 
-    res.status(200).json(order);
-  } catch (error) {
-    console.error("Error fetching order detail:", error);
-    res.status(500).json({ message: "Failed to fetch order detail", error });
-  }
-});
+//     res.status(200).json(order);
+//   } catch (error) {
+//     console.error("Error fetching order detail:", error);
+//     res.status(500).json({ message: "Failed to fetch order detail", error });
+//   }
+// });
 app.get("/api/stats", async (req, res) => {
   try {
     // Product Statistics
-    const totalProducts = await Product.countDocuments();
-    const activeProducts = await Product.countDocuments({ status: true });
+    const totalProduct = await Product.countDocuments();
+    const activeProduct = await Product.countDocuments({ status: true });
     const productAggregation = await Product.aggregate([
       { $unwind: "$variants" },
       { $unwind: "$variants.subVariants" },
