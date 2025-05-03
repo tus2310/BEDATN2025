@@ -1395,8 +1395,8 @@ app.get("/api/stats", async (req, res) => {
 
     const stats = {
       products: {
-        totalProducts,
-        activeProducts,
+        totalProduct,
+        activeProduct,
         totalVariants,
         totalStock,
       },
@@ -1529,103 +1529,48 @@ app.post("/order/confirm", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/order/confirmvnpay", async (req: Request, res: Response) => {
-  try {
-    const {
-      userId,
-      vnp_Amount,
-      vnp_OrderInfo,
-      vnp_ResponseCode,
-      vnp_TransactionNo,
-      paymentMethod,
-    } = req.body;
 
-    if (
-      !userId ||
-      !vnp_Amount ||
-      !vnp_ResponseCode ||
-      !vnp_TransactionNo ||
-      !paymentMethod
-    ) {
-      return res.status(400).json({ message: "thiếu thông tin" });
-    }
 
-    if (vnp_ResponseCode !== "00") {
-      // const updatedOrder = await Order.findOneAndUpdate(
-      //   { userId, status: "pending" },
-      //   {paymentMethod: "Thanh toán khi nhận hàng"},
-      //   { paymentstatus: "Chưa Thanh toán", magiaodich: vnp_TransactionNo },
-      //   { new: true, sort: { createdAt: -1 } }
-      // );
-      return res.status(400).json({ message: "thanh toán thất bại" });
-    }
+// app.post("/api/orders/:orderId/cancel", async (req, res) => {
+//   const { orderId } = req.params;
+//   const { reason, canceledBy } = req.body; // Lấy lý do hủy và người thực hiện từ body
 
-    const cartUpdate = await Cart.findOneAndUpdate({ userId }, { items: [] });
-    if (!cartUpdate) {
-      return res.status(404).json({ message: "không tìm thấy giỏ hàng" });
-    }
+//   try {
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({ message: "Order not found." });
+//     }
 
-    const updatedOrder = await Order.findOneAndUpdate(
-      { userId, status: "pending" },
-      { paymentstatus: "Đã Thanh toán", magiaodich: vnp_TransactionNo },
-      { new: true, sort: { createdAt: -1 } }
-    );
+//     if (order.status === "cancelled") {
+//       return res.status(400).json({ message: "Order is already cancelled." });
+//     }
 
-    if (!updatedOrder) {
-      return res.status(404).json({ message: "Đơn hàng ko tồn tại." });
-    }
+//     // Cập nhật trạng thái hủy đơn và thông tin chi tiết hủy
+//     order.status = "cancelled";
+//     order.cancelReason = {
+//       reason: reason || "No reason provided", // Lý do hủy
+//       canceledAt: new Date(), // Thời điểm hủy
+//       canceledBy: canceledBy || "Unknown", // Người thực hiện hủy
+//     };
 
-    return res
-      .status(201)
-      .json({ message: "Đơn hàng đặt thành công.", order: updatedOrder });
-  } catch (error) {
-    console.error("Error updating order:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to update the order.", error });
-  }
-});
+//     // Cập nhật số lượng sản phẩm trong kho
+//     const updatePromises = order.items.map((item) => {
+//       return Product.findByIdAndUpdate(
+//         item.productId,
+//         { $inc: { soLuong: item.quantity } },
+//         { new: true }
+//       );
+//     });
 
-app.post("/api/orders/:orderId/cancel", async (req, res) => {
-  const { orderId } = req.params;
-  const { reason, canceledBy } = req.body; // Lấy lý do hủy và người thực hiện từ body
+//     await Promise.all(updatePromises);
+//     await order.save();
 
-  try {
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found." });
-    }
-
-    if (order.status === "cancelled") {
-      return res.status(400).json({ message: "Order is already cancelled." });
-    }
-
-    // Cập nhật trạng thái hủy đơn và thông tin chi tiết hủy
-    order.status = "cancelled";
-    order.cancelReason = {
-      reason: reason || "No reason provided", // Lý do hủy
-      canceledAt: new Date(), // Thời điểm hủy
-      canceledBy: canceledBy || "Unknown", // Người thực hiện hủy
-    };
-
-    // Cập nhật số lượng sản phẩm trong kho
-    const updatePromises = order.items.map((item) => {
-      return Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { soLuong: item.quantity } },
-        { new: true }
-      );
-    });
-
-    await Promise.all(updatePromises);
-    await order.save();
-
-    res.json({ message: "Order cancelled successfully", order });
-  } catch (error) {
-    console.error("Error cancelling order:", error);
-    res.status(500).json({ message: "Failed to cancel order." });
-  }
-});
+//     res.json({ message: "Order cancelled successfully", order });
+//   } catch (error) {
+//     console.error("Error cancelling order:", error);
+//     res.status(500).json({ message: "Failed to cancel order." });
+//   }
+// });
 app.post(
   "/api/orders/:orderId/confirm",
   async (req: Request, res: Response) => {
