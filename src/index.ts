@@ -234,22 +234,11 @@ app.post("/cart/add", async (req: Request, res: Response) => {
   const { userId, items } = req.body;
 
   // Validate userId
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ message: "Invalid userId format" });
-  }
-
-  // Validate items array
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: "Items array cannot be empty" });
-  }
 
   // Destructure the first item (assuming single item addition)
   const { productId, name, price, img, quantity, color, subVariant } = items[0];
 
   // Validate productId
-  if (!mongoose.Types.ObjectId.isValid(productId)) {
-    return res.status(400).json({ message: "Invalid productId format" });
-  }
 
   // Validate quantity
   if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -331,73 +320,7 @@ app.delete("/cart/remove", async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Invalid userId format" });
   }
 
-  if (!mongoose.Types.ObjectId.isValid(productId)) {
-    return res.status(400).json({ message: "Invalid productId format" });
-  }
-
-  try {
-    let cart = await Cart.findOne({ userId });
-    if (cart) {
-      const productIndex = cart.items.findIndex(
-        (item) => item.productId.toString() === productId
-      );
-
-      if (productIndex > -1) {
-        cart.items.splice(productIndex, 1);
-        await cart.save();
-        return res.status(200).json(cart);
-      } else {
-        return res.status(404).json({ message: "Product not found in cart" });
-      }
-    } else {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-  } catch (error) {
-    console.error("Error removing item from cart:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-app.get("/Cart/:id", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    console.log(`Fetching cart for userId: ${id}`);
-    const giohang = await Cart.findOne({ userId: id }).populate("items");
-    console.log(`Cart fetched:`, giohang);
-
-    if (!giohang) {
-      return res.status(404).json({ message: "Cart is Empty", isEmpty: true });
-    }
-
-    res.json(giohang);
-  } catch (error) {
-    console.error("Get cart error:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-// Login
-app.post("/login", async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found!",
-      });
-    }
-
-    if (!user.active) {
-      return res.status(403).json({
-        message: "Account is disabled. Please contact support.",
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid password!" });
-    }
+ 
 
     const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
       expiresIn: process.env.EXPIRES_TOKEN,
