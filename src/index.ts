@@ -1681,21 +1681,7 @@ app.get("/comments/:productId", async (req, res) => {
       .status(500)
       .json({ message: "Lỗi Bạn không thể truy xuất bình luận !!!" });
   }
-});
-app.get("/api/products/:productId", async (req: Request, res: Response) => {
-  try {
-    const { productId } = req.params;
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    res.json(product);
-  } catch (error) {
-    console.error("Error fetching product details:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
 });
 
 app.put("/api/cart/:userId", async (req, res) => {
