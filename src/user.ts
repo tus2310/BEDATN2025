@@ -13,11 +13,7 @@ export interface User extends Document {
   role: string;
   active: boolean;
   reason: string;
-  deactivationHistory: Array<{
-    reason: string;
-    date: Date;
-    deactivatedBy: string; // ID của admin
-  }>;
+  deActivate: boolean;
 }
 
 const UserSchema: Schema = new Schema(
@@ -37,16 +33,17 @@ const UserSchema: Schema = new Schema(
       default: "user",
     },
     active: { type: Boolean, default: true },
+    deActivate: { type: Boolean, default: false }, // ✅ thêm dòng này
     reason: { type: String, default: null },
     deactivationHistory: [
       {
         reason: { type: String, required: true },
         date: { type: Date, default: Date.now },
-        deactivatedBy: { type: String, required: true }, // ID của admin
+        // adminId hoặc thông tin khác có thể được thêm tại đây nếu cần
       },
     ],
   },
-  { timestamps: true } // Thêm timestamps
+  { timestamps: true }
 );
 
 export default mongoose.model<User>("User", UserSchema);
