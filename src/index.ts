@@ -587,7 +587,13 @@ app.get("/products", async (req: Request, res: Response) => {
 
 app.get("/product-test", async (req: Request, res: Response) => {
   try {
-    const { category, categoryStatus, status, page = 1, limit = 18 } = req.query;
+    const {
+      category,
+      categoryStatus,
+      status,
+      page = 1,
+      limit = 18,
+    } = req.query;
 
     // Define the pipeline stages as an array of PipelineStage
     const pipeline: PipelineStage[] = [];
@@ -1470,57 +1476,69 @@ interface UpdateOrderRequestBody {
 }
 
 // PUT /orders-list/:orderId endpoint
-app.put("/orders-list/:orderId", async (req: Request<{ orderId: string }, any, UpdateOrderRequestBody>, res: Response) => {
-  const { orderId } = req.params;
-  const { status, paymentstatus, shipperId, returnedItems } = req.body;
-  console.log("Received request body:", req.body);
+app.put(
+  "/orders-list/:orderId",
+  async (
+    req: Request<{ orderId: string }, any, UpdateOrderRequestBody>,
+    res: Response
+  ) => {
+    const { orderId } = req.params;
+    const { status, paymentstatus, shipperId, returnedItems } = req.body;
+    console.log("Received request body:", req.body);
 
-  try {
-    const order = await Order.findById(orderId);
-    console.log("Order before update:", order);
+    try {
+      const order = await Order.findById(orderId);
+      console.log("Order before update:", order);
 
-    if (!order) {
-      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-    }
-
-    if (order.shipperId && order.shipperId !== shipperId) {
-      return res.status(403).json({ message: "Bạn không được phép cập nhật đơn hàng này" });
-    }
-
-    if (status === "in_progress" && !order.shipperId) {
-      if (!shipperId) {
-        return res.status(400).json({ message: "shipperId là bắt buộc khi nhận đơn hàng" });
+      if (!order) {
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
-      order.shipperId = shipperId;
-      console.log("Assigned shipperId before save:", order.shipperId);
-    }
 
-    if (status === "failed" && returnedItems) {
-      const updatePromises = returnedItems.map((item) =>
-        Product.findByIdAndUpdate(
-          item.productId,
-          { $inc: { quantity: item.quantity } },
-          { new: true }
-        )
-      );
-      await Promise.all(updatePromises);
-    }
+      if (order.shipperId && order.shipperId !== shipperId) {
+        return res
+          .status(403)
+          .json({ message: "Bạn không được phép cập nhật đơn hàng này" });
+      }
 
-    order.status = status;
-    if (paymentstatus) order.paymentstatus = paymentstatus;
+      if (status === "in_progress" && !order.shipperId) {
+        if (!shipperId) {
+          return res
+            .status(400)
+            .json({ message: "shipperId là bắt buộc khi nhận đơn hàng" });
+        }
+        order.shipperId = shipperId;
+        console.log("Assigned shipperId before save:", order.shipperId);
+      }
 
-    const updatedOrder = await order.save();
-    console.log("Updated order saved to database:", updatedOrder);
-    if (updatedOrder) {
-      res.status(200).json(updatedOrder);
-    } else {
-      res.status(404).json({ message: "Không tìm thấy đơn hàng sau khi cập nhật" });
+      if (status === "failed" && returnedItems) {
+        const updatePromises = returnedItems.map((item) =>
+          Product.findByIdAndUpdate(
+            item.productId,
+            { $inc: { quantity: item.quantity } },
+            { new: true }
+          )
+        );
+        await Promise.all(updatePromises);
+      }
+
+      order.status = status;
+      if (paymentstatus) order.paymentstatus = paymentstatus;
+
+      const updatedOrder = await order.save();
+      console.log("Updated order saved to database:", updatedOrder);
+      if (updatedOrder) {
+        res.status(200).json(updatedOrder);
+      } else {
+        res
+          .status(404)
+          .json({ message: "Không tìm thấy đơn hàng sau khi cập nhật" });
+      }
+    } catch (error) {
+      console.error("Error updating order:", error);
+      res.status(500).json({ message: "Lỗi máy chủ", error });
     }
-  } catch (error) {
-    console.error("Error updating order:", error);
-    res.status(500).json({ message: "Lỗi máy chủ", error });
   }
-});
+);
 
 // GET /orders-list endpoint
 app.get("/orders-list", async (req: Request, res: Response) => {
@@ -1537,7 +1555,6 @@ app.get("/orders-list", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to retrieve orders", error });
   }
 });
-
 
 app.get("/orders/:orderId", async (req: Request, res: Response) => {
   const { orderId } = req.params;
@@ -1561,7 +1578,6 @@ app.get("/orders/:orderId", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch order detail", error });
   }
 });
-
 
 app.get("/api/stats", async (req, res) => {
   try {
@@ -1751,7 +1767,14 @@ app.post("/order/confirm", async (req: Request, res: Response) => {
   session.startTransaction();
 
   try {
-    const { userId, items, amount, paymentMethod, customerDetails, voucherCode } = req.body;
+    const {
+      userId,
+      items,
+      amount,
+      paymentMethod,
+      customerDetails,
+      voucherCode,
+    } = req.body;
 
     // Validate request data
     if (!userId || !items || !amount || !paymentMethod || !customerDetails) {
@@ -1770,7 +1793,9 @@ app.post("/order/confirm", async (req: Request, res: Response) => {
 
     // If a voucher code is provided, validate and apply the voucher
     if (voucherCode) {
-      const voucher = await Voucher.findOne({ code: voucherCode }).session(session);
+      const voucher = await Voucher.findOne({ code: voucherCode }).session(
+        session
+      );
       if (!voucher) {
         await session.abortTransaction();
         session.endSession();
@@ -1781,7 +1806,9 @@ app.post("/order/confirm", async (req: Request, res: Response) => {
       if (!voucher.isActive || voucher.expirationDate < new Date()) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(400).json({ message: "Voucher is not active or has expired" });
+        return res
+          .status(400)
+          .json({ message: "Voucher is not active or has expired" });
       }
 
       // Check if the voucher has remaining quantity
@@ -2027,11 +2054,9 @@ app.put("/api/products/:productId", async (req: Request, res: Response) => {
         sv.value === subVariant.value
     );
     if (!subVar) {
-      return res
-        .status(404)
-        .json({
-          message: `Không tìm thấy subVariant ${subVariant.specification}: ${subVariant.value}`,
-        });
+      return res.status(404).json({
+        message: `Không tìm thấy subVariant ${subVariant.specification}: ${subVariant.value}`,
+      });
     }
     console.log("SubVariant found:", JSON.stringify(subVar, null, 2));
 
@@ -2238,9 +2263,11 @@ app.post("/vouchers/add", async (req: Request, res: Response) => {
       quantity,
     });
     await voucher.save();
-    res.status(201).json({ message: "Voucher created successfully", voucher });
+    res
+      .status(201)
+      .json({ message: "Phiếu mua hàng đã được tạo thành công", voucher });
   } catch (error) {
-    res.status(400).json({ message: "Error creating voucher", error });
+    res.status(400).json({ message: "Lỗi khi tạo phiếu giảm giá", error });
   }
 });
 
@@ -2249,18 +2276,19 @@ app.get("/vouchers", async (req: Request, res: Response) => {
     const vouchers = await Voucher.find();
     res.json(vouchers);
   } catch (error) {
-    console.error("Error fetching vouchers:", error);
-    res.status(500).json({ message: "Failed to retrieve vouchers" });
+    console.error("Lỗi khi tải phiếu giảm giá:", error);
+    res.status(500).json({ message: "Không lấy được phiếu giảm giá" });
   }
 });
 
 app.get("/vouchers/:id", async (req: Request, res: Response) => {
   try {
     const voucher = await Voucher.findById(req.params.id);
-    if (!voucher) return res.status(404).json({ message: "Voucher not found" });
+    if (!voucher)
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     res.status(200).json(voucher);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching voucher", error });
+    res.status(500).json({ message: "Lỗi khi tải phiếu giảm giá", error });
   }
 });
 
@@ -2276,13 +2304,13 @@ app.put("/vouchers/:id", async (req, res) => {
     );
 
     if (!updatedVoucher) {
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     }
 
     res.json(updatedVoucher);
   } catch (error) {
-    console.error("Error updating voucher:", error);
-    res.status(500).json({ message: "Error updating voucher" });
+    console.error("Lỗi khi cập nhật phiếu giảm giá:", error);
+    res.status(500).json({ message: "Lỗi khi cập nhật phiếu giảm giá" });
   }
 });
 
@@ -2290,12 +2318,12 @@ app.delete("/vouchers/:id", async (req: Request, res: Response) => {
   try {
     const deletedVoucher = await Voucher.findByIdAndDelete(req.params.id);
     if (!deletedVoucher)
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     res
       .status(200)
-      .json({ message: "Voucher deleted successfully", deletedVoucher });
+      .json({ message: "Đã xóa phiếu giảm giá thành công", deletedVoucher });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting voucher", error });
+    res.status(500).json({ message: "Lỗi khi xóa phiếu giảm giá", error });
   }
 });
 
@@ -2305,16 +2333,18 @@ app.put("/vouchers/:id/toggle", async (req: Request, res: Response) => {
 
     const voucher = await Voucher.findById(id);
     if (!voucher) {
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     }
 
     voucher.isActive = !voucher.isActive;
     await voucher.save();
 
-    res.status(200).json({ message: "Voucher status updated", voucher });
+    res
+      .status(200)
+      .json({ message: "Trạng thái phiếu giảm giá đã cập nhật", voucher });
   } catch (error) {
-    console.error("Error toggling voucher status:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Lỗi khi chuyển đổi trạng thái phiếu giảm giá:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
   }
 });
 
@@ -2322,46 +2352,49 @@ app.post("/voucher/apply", async (req: Request, res: Response) => {
   const { code } = req.body;
 
   try {
-    // Validate request data
+    // Xác thực dữ liệu yêu cầu
     if (!code) {
-      return res.status(400).json({ message: "Voucher code is required" });
+      return res.status(400).json({ message: "Cần có mã phiếu giảm giá" });
     }
 
-    // Find the voucher by code
+    // Tìm phiếu giảm giá theo mã
     const voucher = await Voucher.findOne({ code });
     if (!voucher) {
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     }
 
-    // Check if the voucher is active and not expired
+    // Kiểm tra xem phiếu giảm giá có hoạt động và chưa hết hạn không
     if (!voucher.isActive || voucher.expirationDate < new Date()) {
-      return res.status(400).json({ message: "Voucher is not active or has expired" });
+      return res
+        .status(400)
+        .json({ message: "Phiếu giảm giá không có hiệu lực hoặc đã hết hạn" });
     }
 
-    // Check if the voucher has remaining quantity
+    // Kiểm tra xem phiếu giảm giá còn số lượng không
     if (voucher.quantity <= 0) {
-      return res.status(400).json({ message: "Voucher is out of stock" });
+      return res.status(400).json({ message: "Phiếu giảm giá đã hết hàng" });
     }
 
-    // Return the discount amount
+    // Trả lại số tiền giảm giá
     res.status(200).json({
       discountAmount: voucher.discountAmount,
       discountPercentage: voucher.discountPercentage || undefined,
       description: voucher.description || undefined,
     });
   } catch (error) {
-    console.error("Error applying voucher:", error);
-    res.status(500).json({ message: "Failed to apply voucher", error });
+    console.error("Lỗi khi áp dụng phiếu giảm giá:", error);
+    res
+      .status(500)
+      .json({ message: "Không áp dụng được phiếu giảm giá", error });
   }
 });
-
-
 
 app.post("/checkout", async (req, res) => {
   const { userId } = req.body;
 
   try {
-    const { hasPriceChanged, hasDeactivatedProducts, deactivatedProductNames } = await validateCartPrices(userId);
+    const { hasPriceChanged, hasDeactivatedProducts, deactivatedProductNames } =
+      await validateCartPrices(userId);
 
     if (hasPriceChanged) {
       await Cart.updateOne({ userId }, { items: [] });
@@ -2373,7 +2406,9 @@ app.post("/checkout", async (req, res) => {
 
     if (hasDeactivatedProducts) {
       return res.status(400).json({
-        message: `Các sản phẩm sau đã bị vô hiệu hóa và đã được xóa khỏi giỏ hàng: ${deactivatedProductNames.join(", ")}.`,
+        message: `Các sản phẩm sau đã bị vô hiệu hóa và đã được xóa khỏi giỏ hàng: ${deactivatedProductNames.join(
+          ", "
+        )}.`,
         reason: "deactivatedProducts",
         deactivatedProducts: deactivatedProductNames,
       });

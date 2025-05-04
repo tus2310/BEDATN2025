@@ -1,55 +1,73 @@
-import express, { Request, Response } from "express";
-import Cart from "../cart";
+import Cart, {
+  ICart,
+  IPopulatedCart,
+  ICartItem,
+  IPopulatedCartItem,
+} from "../cart";
+import ProductModel from "../product"; // Import the Mongoose model (default export)
+import { Product } from "../product"; // Import the Product interface (named export)
 
-// Utility function to validate cart items (price and name)
-export const validateCartItems = async (
+export const validateCartPrices = async (
   userId: string
-): Promise<{ hasChanged: boolean; reason: string }> => {
-  // Populate cart with product details
-  const cart = await Cart.findOne({ userId }).populate("items.productId");
+): Promise<{
+  hasPriceChanged: boolean;
+  hasDeactivatedProducts: boolean;
+  deactivatedProductNames: string[];
+}> => {
+  // Populate cart with product details, explicitly including status
+  const cart = (await Cart.findOne({ userId })
+    .populate<{ items: IPopulatedCartItem[] }>(
+      "items.productId",
+      "status name variants"
+    )
+    .lean()) as IPopulatedCart;
 
-  if (!cart) {
-    return { hasChanged: false, reason: "Cart not found" };
-  }
+  if (!cart) throw new Error("Cart not found");
 
-  for (const item of cart.items) {
-    const product = item.productId as any; // Type assertion; improve with proper typing
+  let hasPriceChanged = false;
+  let hasDeactivatedProducts = false;
+  const deactivatedProductNames: string[] = [];
+  const itemsToKeep: ICartItem[] = []; // Use ICartItem for items to save back to DB
+
+  // Explicitly type the loop variable as IPopulatedCartItem
+  for (const item of cart.items as IPopulatedCartItem[]) {
+    const product = item.productId as Product; // Use the Product interface for type assertion
     if (!product) {
-      return {
-        hasChanged: true,
-        reason: `Product not found: ${item.productId}`,
-      };
+      hasDeactivatedProducts = true;
+      deactivatedProductNames.push(item.name);
+      continue;
+    }
+
+    // Check if the product is deactivated (status: false)
+    if (product.status === false) {
+      hasDeactivatedProducts = true;
+      deactivatedProductNames.push(product.name);
+      continue;
     }
 
     // Find the corresponding variant in the product by color
-    const variant = product.variants.find((v: any) => v.color === item.color);
+    const variant = product.variants.find((v) => v.color === item.color);
 
-    // --- Check Price Change ---
+    if (!variant) {
+      hasPriceChanged = true;
+      break;
+    }
+
     // Calculate total price based on whether subVariant exists
     let calculatedPrice = variant.basePrice;
 
     if (item.subVariant) {
-      // Safely handle subVariant being defined
       const subVariant = variant.subVariants.find(
-        (sv: any) =>
+        (sv) =>
           sv.specification === item.subVariant?.specification &&
           sv.value === item.subVariant?.value
       );
 
       if (!subVariant) {
-        return {
-          hasChanged: true,
-          reason: "Sub-variant not found. The cart has been reset.",
-        };
-      }
-      if (!subVariant) {
-        return {
-          hasChanged: true,
-          reason: "Sub-variant not found. t.",
-        };
+        hasPriceChanged = true;
+        break;
       }
 
-      // Add additionalPrice from subVariant
       calculatedPrice += subVariant.additionalPrice || 0;
     }
 
@@ -59,56 +77,32 @@ export const validateCartItems = async (
 
     // Compare calculated price with cart item's price
     if (calculatedPrice !== item.price) {
-      return {
-        hasChanged: true,
-        reason: "Product prices have changed. The cart has been reset.",
-      };
+      hasPriceChanged = true;
+      break;
     }
 
-    // --- Check Variant Name Change ---
-    // Construct the variant name in the cart
-    const cartVariantName = item.subVariant
-      ? `${item.subVariant.specification}: ${item.subVariant.value}`
-      : item.color;
-
-    // Construct the current variant name from the product data
-    const currentSubVariant = item.subVariant
-      ? variant.subVariants.find(
-          (sv: any) =>
-            sv.specification === item.subVariant?.specification &&
-            sv.value === item.subVariant?.value
-        )
-      : null;
-
-    const currentVariantName = currentSubVariant
-      ? `${currentSubVariant.specification}: ${currentSubVariant.value}`
-      : variant.color;
-
-    // Compare the variant names
-    if (cartVariantName !== currentVariantName) {
-      return {
-        hasChanged: true,
-        reason: "Variant names have changed. The cart has been reset.",
-      };
-    }
-    if (cartVariantName !== currentVariantName) {
-      return {
-        hasChanged: true,
-        reason: "Variant names have changed. The cart has been reset.",
-      };
-    }
+    // If the item passes all checks, keep it in the cart
+    // Convert back to ICartItem by removing the populated productId
+    const itemToKeep: ICartItem = {
+      productId: (item.productId as any)._id, // Extract the ObjectId
+      name: item.name,
+      price: item.price,
+      img: item.img,
+      quantity: item.quantity,
+      color: item.color,
+      subVariant: item.subVariant,
+    };
+    itemsToKeep.push(itemToKeep);
   }
 
-  return { hasChanged: false, reason: "" };
-};
-export const calculateItemPrice = (variant: any, subVariant?: any): number => {
-  let price = Number(variant.basePrice) || 0;
-  if (subVariant) {
-    price += Number(subVariant.additionalPrice) || 0;
+  // If there are deactivated products, update the cart to remove them
+  if (hasDeactivatedProducts) {
+    await Cart.updateOne({ userId }, { items: itemsToKeep });
   }
-  const discount = Number(variant.discount) || 0;
-  price -= discount;
-  return price;
-};
 
-// /checkout endpoint
+  return {
+    hasPriceChanged,
+    hasDeactivatedProducts,
+    deactivatedProductNames,
+  };
+};
