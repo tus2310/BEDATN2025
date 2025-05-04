@@ -1,7 +1,4 @@
-
-
-
-import { User } from "../user"; 
+import { User } from "../user";
 import { Request } from "express";
 
 declare global {

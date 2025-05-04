@@ -49,6 +49,7 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 const router = Router();
 mongoose
   .connect(
+    // "mongodb+srv://ungductrungtrung:Jerry2912@cluster0.4or3syc.mongodb.net/",
     "mongodb+srv://fptdatn2025:fptdatn2025@cluster0.selo8.mongodb.net/",
     {
       //   useNewUrlParser: true,
@@ -330,44 +331,42 @@ app.delete("/cart/remove", async (req: Request, res: Response) => {
   const { userId, productId, color, subVariant } = req.body;
 
   try {
-    // Xác thực dữ liệu yêu cầu
+    // Validate request data
     if (!userId || !productId || !color) {
       return res.status(400).json({
         message:
-          "Thiếu các trường bắt buộc: userId, productId và color là bắt buộc",
+          "Missing required fields: userId, productId, and color are required",
       });
     }
 
-    // Xác thực userId và productId
+    // Validate userId and productId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Định dạng userId không hợp lệ" });
+      return res.status(400).json({ message: "Invalid userId format" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return res
-        .status(400)
-        .json({ message: "Định dạng productId không hợp lệ" });
+      return res.status(400).json({ message: "Invalid productId format" });
     }
 
-    // Xác thực subVariant nếu được cung cấp
+    // Validate subVariant if provided
     if (subVariant && (!subVariant.specification || !subVariant.value)) {
       return res.status(400).json({
-        message: "Biến thể phụ phải bao gồm cả thông số kỹ thuật và giá trị",
+        message: "SubVariant must include both specification and value",
       });
     }
 
-    // Lấy giỏ hàng của người dùng
+    // Fetch the user's cart
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return res.status(404).json({ message: "Không tìm thấy giỏ hàng" });
+      return res.status(404).json({ message: "Cart not found" });
     }
 
-    // Xác định mục cần xóa
+    // Identify the item to remove
     const itemKey = subVariant
       ? `${productId}-${color}-${subVariant.specification}-${subVariant.value}`
       : `${productId}-${color}`;
 
-    // Lọc ra mục cần xóa
+    // Filter out the item to remove
     const updatedItems = cart.items.filter((item: any) => {
       const cartItemKey = item.subVariant
         ? `${item.productId}-${item.color}-${item.subVariant.specification}-${item.subVariant.value}`
@@ -375,17 +374,17 @@ app.delete("/cart/remove", async (req: Request, res: Response) => {
       return cartItemKey !== itemKey;
     });
 
-    // Cập nhật giỏ hàng với các mục còn lại
+    // Update the cart with the remaining items
     cart.items = updatedItems;
     await cart.save();
 
     res
       .status(200)
-      .json({ message: "Mục đã xóa khỏi giỏ hàng thành công", cart });
+      .json({ message: "Item removed from cart successfully", cart });
   } catch (error: any) {
-    console.error("Lỗi khi xóa mục khỏi giỏ hàng:", error);
+    console.error("Error removing item from cart:", error);
     res.status(500).json({
-      message: "Không xóa được mục khỏi giỏ hàng",
+      message: "Failed to remove item from cart",
       error: error.message,
     });
   }
@@ -397,23 +396,23 @@ app.get("/cart/:id", async (req: Request, res: Response) => {
 
     // Validate id
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Định dạng userId không hợp lệ" });
+      return res.status(400).json({ message: "Invalid userId format" });
     }
 
-    console.log(`Đang lấy giỏ hàng cho userId: ${id}`);
+    console.log(`Fetching cart for userId: ${id}`);
     const cart = await Cart.findOne({ userId: id }); // Removed .populate("items.productId")
-    console.log(`Đã lấy giỏ hàng:`, cart);
+    console.log(`Cart fetched:`, cart);
 
     if (!cart) {
-      return res.status(404).json({ message: "Giỏ hàng trống", isEmpty: true });
+      return res.status(404).json({ message: "Cart is Empty", isEmpty: true });
     }
 
     res.json(cart);
   } catch (error: any) {
-    console.error("Lỗi khi lấy giỏ hàng:", error);
+    console.error("Get cart error:", error);
     res
       .status(500)
-      .json({ message: "Lỗi máy chủ nội bộ", error: error.message });
+      .json({ message: "Internal server error", error: error.message });
   }
 });
 
@@ -1898,6 +1897,97 @@ app.post("/order/confirm", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/order/confirmvnpay", async (req: Request, res: Response) => {
+  try {
+    const {
+      userId,
+      vnp_Amount,
+      vnp_OrderInfo,
+      vnp_ResponseCode,
+      vnp_TransactionNo,
+      paymentMethod,
+    } = req.body;
+
+    if (
+      !userId ||
+      !vnp_Amount ||
+      !vnp_ResponseCode ||
+      !vnp_TransactionNo ||
+      !paymentMethod
+    ) {
+      return res.status(400).json({ message: "thiếu thông tin" });
+    }
+
+    if (vnp_ResponseCode !== "00") {
+      return res.status(400).json({ message: "thanh toán thất bại" });
+    }
+
+    const cartUpdate = await Cart.findOneAndUpdate({ userId }, { items: [] });
+    if (!cartUpdate) {
+      return res.status(404).json({ message: "không tìm thấy giỏ hàng" });
+    }
+
+    const updatedOrder = await Order.findOneAndUpdate(
+      { userId, status: "pending" },
+      { paymentstatus: "Đã Thanh toán", magiaodich: vnp_TransactionNo },
+      { new: true, sort: { createdAt: -1 } }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Đơn hàng ko tồn tại." });
+    }
+
+    return res
+      .status(201)
+      .json({ message: "Đơn hàng đặt thành công.", order: updatedOrder });
+  } catch (error) {
+    console.error("Error updating order:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to update the order.", error });
+  }
+});
+
+app.post("/api/orders/:orderId/cancel", async (req, res) => {
+  const { orderId } = req.params;
+  const { reason, canceledBy } = req.body; // Lấy lý do hủy và người thực hiện từ body
+
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    if (order.status === "cancelled") {
+      return res.status(400).json({ message: "Order is already cancelled." });
+    }
+
+    // Cập nhật trạng thái hủy đơn và thông tin chi tiết hủy
+    order.status = "cancelled";
+    order.cancelReason = {
+      reason: reason || "No reason provided", // Lý do hủy
+      canceledAt: new Date(), // Thời điểm hủy
+      canceledBy: canceledBy || "Unknown", // Người thực hiện hủy
+    };
+
+    // Cập nhật số lượng sản phẩm trong kho
+    const updatePromises = order.items.map((item) => {
+      return Product.findByIdAndUpdate(
+        item.productId,
+        { $inc: { soLuong: item.quantity } },
+        { new: true }
+      );
+    });
+
+    await Promise.all(updatePromises);
+    await order.save();
+
+    res.json({ message: "Order cancelled successfully", order });
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    res.status(500).json({ message: "Failed to cancel order." });
+  }
+});
 app.post(
   "/api/orders/:orderId/confirm",
   async (req: Request, res: Response) => {
@@ -2186,6 +2276,22 @@ app.put("/updateProfile/:userId", async (req: Request, res: Response) => {
   }
 });
 
+app.get("/api/orders/:id", async (req: Request, res: Response) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("userId", "name email")
+      .populate("items.productId", "name price img")
+      .populate("voucher");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    res.status(200).json(order);
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    res.status(500).json({ message: "Could not fetch the order", error });
+  }
+});
+
 app.put("/api/orders/:id/confirm-receive", async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body; // Giả sử bạn gửi userId trong body để xác định người xác nhận
@@ -2263,11 +2369,9 @@ app.post("/vouchers/add", async (req: Request, res: Response) => {
       quantity,
     });
     await voucher.save();
-    res
-      .status(201)
-      .json({ message: "Phiếu mua hàng đã được tạo thành công", voucher });
+    res.status(201).json({ message: "Voucher created successfully", voucher });
   } catch (error) {
-    res.status(400).json({ message: "Lỗi khi tạo phiếu giảm giá", error });
+    res.status(400).json({ message: "Error creating voucher", error });
   }
 });
 
@@ -2276,19 +2380,18 @@ app.get("/vouchers", async (req: Request, res: Response) => {
     const vouchers = await Voucher.find();
     res.json(vouchers);
   } catch (error) {
-    console.error("Lỗi khi tải phiếu giảm giá:", error);
-    res.status(500).json({ message: "Không lấy được phiếu giảm giá" });
+    console.error("Error fetching vouchers:", error);
+    res.status(500).json({ message: "Failed to retrieve vouchers" });
   }
 });
 
 app.get("/vouchers/:id", async (req: Request, res: Response) => {
   try {
     const voucher = await Voucher.findById(req.params.id);
-    if (!voucher)
-      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
+    if (!voucher) return res.status(404).json({ message: "Voucher not found" });
     res.status(200).json(voucher);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi khi tải phiếu giảm giá", error });
+    res.status(500).json({ message: "Error fetching voucher", error });
   }
 });
 
@@ -2304,13 +2407,13 @@ app.put("/vouchers/:id", async (req, res) => {
     );
 
     if (!updatedVoucher) {
-      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
+      return res.status(404).json({ message: "Voucher not found" });
     }
 
     res.json(updatedVoucher);
   } catch (error) {
-    console.error("Lỗi khi cập nhật phiếu giảm giá:", error);
-    res.status(500).json({ message: "Lỗi khi cập nhật phiếu giảm giá" });
+    console.error("Error updating voucher:", error);
+    res.status(500).json({ message: "Error updating voucher" });
   }
 });
 
@@ -2318,12 +2421,12 @@ app.delete("/vouchers/:id", async (req: Request, res: Response) => {
   try {
     const deletedVoucher = await Voucher.findByIdAndDelete(req.params.id);
     if (!deletedVoucher)
-      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
+      return res.status(404).json({ message: "Voucher not found" });
     res
       .status(200)
-      .json({ message: "Đã xóa phiếu giảm giá thành công", deletedVoucher });
+      .json({ message: "Voucher deleted successfully", deletedVoucher });
   } catch (error) {
-    res.status(500).json({ message: "Lỗi khi xóa phiếu giảm giá", error });
+    res.status(500).json({ message: "Error deleting voucher", error });
   }
 });
 
@@ -2333,18 +2436,16 @@ app.put("/vouchers/:id/toggle", async (req: Request, res: Response) => {
 
     const voucher = await Voucher.findById(id);
     if (!voucher) {
-      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
+      return res.status(404).json({ message: "Voucher not found" });
     }
 
     voucher.isActive = !voucher.isActive;
     await voucher.save();
 
-    res
-      .status(200)
-      .json({ message: "Trạng thái phiếu giảm giá đã cập nhật", voucher });
+    res.status(200).json({ message: "Voucher status updated", voucher });
   } catch (error) {
-    console.error("Lỗi khi chuyển đổi trạng thái phiếu giảm giá:", error);
-    res.status(500).json({ message: "Lỗi máy chủ" });
+    console.error("Error toggling voucher status:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -2352,40 +2453,38 @@ app.post("/voucher/apply", async (req: Request, res: Response) => {
   const { code } = req.body;
 
   try {
-    // Xác thực dữ liệu yêu cầu
+    // Validate request data
     if (!code) {
-      return res.status(400).json({ message: "Cần có mã phiếu giảm giá" });
+      return res.status(400).json({ message: "Voucher code is required" });
     }
 
-    // Tìm phiếu giảm giá theo mã
+    // Find the voucher by code
     const voucher = await Voucher.findOne({ code });
     if (!voucher) {
-      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
+      return res.status(404).json({ message: "Voucher not found" });
     }
 
-    // Kiểm tra xem phiếu giảm giá có hoạt động và chưa hết hạn không
+    // Check if the voucher is active and not expired
     if (!voucher.isActive || voucher.expirationDate < new Date()) {
       return res
         .status(400)
-        .json({ message: "Phiếu giảm giá không có hiệu lực hoặc đã hết hạn" });
+        .json({ message: "Voucher is not active or has expired" });
     }
 
-    // Kiểm tra xem phiếu giảm giá còn số lượng không
+    // Check if the voucher has remaining quantity
     if (voucher.quantity <= 0) {
-      return res.status(400).json({ message: "Phiếu giảm giá đã hết hàng" });
+      return res.status(400).json({ message: "Voucher is out of stock" });
     }
 
-    // Trả lại số tiền giảm giá
+    // Return the discount amount
     res.status(200).json({
       discountAmount: voucher.discountAmount,
       discountPercentage: voucher.discountPercentage || undefined,
       description: voucher.description || undefined,
     });
   } catch (error) {
-    console.error("Lỗi khi áp dụng phiếu giảm giá:", error);
-    res
-      .status(500)
-      .json({ message: "Không áp dụng được phiếu giảm giá", error });
+    console.error("Error applying voucher:", error);
+    res.status(500).json({ message: "Failed to apply voucher", error });
   }
 });
 
