@@ -2171,6 +2171,33 @@ app.get("/user/:id/status", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/checkout", async (req, res) => {
+  const { userId } = req.body;
+
+  try {
+    const { hasPriceChanged, hasDeactivatedProducts, deactivatedProductNames } = await validateCartPrices(userId);
+
+    if (hasPriceChanged) {
+      await Cart.updateOne({ userId }, { items: [] });
+      return res.status(400).json({
+        message: "Giá sản phẩm đã thay đổi. Giỏ hàng đã được đặt lại.",
+        reason: "priceChange",
+      });
+    }
+
+    if (hasDeactivatedProducts) {
+      return res.status(400).json({
+        message: `Các sản phẩm sau đã bị vô hiệu hóa và đã được xóa khỏi giỏ hàng: ${deactivatedProductNames.join(", ")}.`,
+        reason: "deactivatedProducts",
+        deactivatedProducts: deactivatedProductNames,
+      });
+    }
+
+    res.status(200).json({ message: "Thanh toán thành công!" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ." });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Server đang lắng nghe tại cổng: ${PORT}`);
 });
