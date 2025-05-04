@@ -2,8 +2,8 @@ import mongoose, { Schema, Document } from "mongoose";
 import mongoosePaginate from "mongoose-paginate-v2";
 
 export interface SubVariant {
-  specification: string; // e.g., "Storage"
-  value: string; // e.g., "128GB"
+  specification: string;
+  value: string;
   additionalPrice: number;
   quantity: number;
 }
@@ -11,7 +11,7 @@ export interface SubVariant {
 export interface Variant {
   color: string;
   basePrice: number;
-  discount?: number; // Optional, as in frontend
+  discount?: number;
   subVariants: SubVariant[];
 }
 
@@ -24,6 +24,7 @@ export interface Product extends Document {
   category: mongoose.Schema.Types.ObjectId;
   status: boolean;
   variants: Variant[];
+  discountCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +40,7 @@ const VariantSchema: Schema = new Schema({
   color: { type: String, required: true },
   basePrice: { type: Number, required: true },
   discount: { type: Number, default: 0 },
-  subVariants: [SubVariantSchema], // Quantity is managed here
+  subVariants: [SubVariantSchema],
 });
 
 const ProductSchema: Schema = new Schema(
@@ -52,6 +53,7 @@ const ProductSchema: Schema = new Schema(
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     status: { type: Boolean, required: true },
     variants: [VariantSchema],
+    discountCode: { type: String },
   },
   { timestamps: true }
 );
