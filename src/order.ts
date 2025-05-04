@@ -1,15 +1,23 @@
-import mongoose, { Document, Schema } from "mongoose";
-import { ICartItem } from "./cart";
+import mongoose, { Schema, Document } from "mongoose";
 
-// Define the interface for the order
-export interface IOrder extends Document {
-  userId: mongoose.Schema.Types.ObjectId;
-  items: ICartItem[];
+// Interface for the Order document
+interface IOrder extends Document {
+  userId: mongoose.Types.ObjectId;
+  items: {
+    productId: mongoose.Types.ObjectId;
+    name: string;
+    price: number;
+    quantity: number;
+    color?: string;
+    subVariant?: {
+      specification: string;
+      value: string;
+    };
+  }[];
   amount: number;
   status: string;
   paymentstatus: string;
-  createdAt: Date;
-  magiaodich: string;
+  paymentMethod: string;
   customerDetails: {
     name: string;
     phone: string;
@@ -17,61 +25,68 @@ export interface IOrder extends Document {
     address: string;
     notes?: string;
   };
-  cancelReason: {
-    reason?: string; // Lý do hủy đơn
-    canceledAt?: Date; // Thời điểm hủy
-    canceledBy?: string; // Người thực hiện hủy
+  voucher?: mongoose.Types.ObjectId;
+  cancelReason?: {
+    reason: string;
+    canceledAt: Date;
+    canceledBy: string;
   };
-  paymentMethod: string;
-  confirmedAt?: Date; // Thời điểm xác nhận đơn hàng
-  confirmedBy?: string; // Người xác nhận đơn hàng
-  receivedAt?: Date; // Thời điểm nhận hàng
-  receivedBy?: string; // Người xác nhận đã nhận
+  confirmedAt?: Date;
+  confirmedBy?: string;
+  receivedAt?: Date;
+  receivedBy?: string;
+  shipperId?: string; // Replace shipper subdocument with shipperId
+  createdAt: Date;
 }
 
-// Define the schema for the order
-const orderSchema = new Schema<IOrder>({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  items: [
-    {
-      productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-        required: true,
+// Define the Order schema
+const orderSchema: Schema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    items: [
+      {
+        productId: {
+          type: Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
+        quantity: { type: Number, required: true },
+        color: { type: String },
+        subVariant: {
+          specification: { type: String },
+          value: { type: String },
+        },
       },
+    ],
+    amount: { type: Number, required: true },
+    status: { type: String, default: "pending" },
+    paymentstatus: { type: String, default: "chưa thanh toán" },
+    paymentMethod: { type: String, required: true },
+    customerDetails: {
       name: { type: String, required: true },
-      price: { type: Number, required: true },
-      img: [{ type: String, required: true }],
-      quantity: { type: Number, required: true },
+      phone: { type: String, required: true },
+      email: { type: String, required: true },
+      address: { type: String, required: true },
+      notes: { type: String },
     },
-  ],
-  amount: { type: Number, required: true },
-  status: { type: String, default: "pending" },
-  paymentstatus: {
-    type: String,
-    default: "chưa thanh toán",
+    voucher: { type: Schema.Types.ObjectId, ref: "Voucher" },
+    cancelReason: {
+      reason: { type: String },
+      canceledAt: { type: Date },
+      canceledBy: { type: String },
+    },
+    confirmedAt: { type: Date },
+    confirmedBy: { type: String },
+    receivedAt: { type: Date },
+    receivedBy: { type: String },
+    shipperId: { type: String }, // Simplified to a single ID field
+    createdAt: { type: Date, default: Date.now },
   },
-  createdAt: { type: Date, default: Date.now },
-  magiaodich: { type: String, required: false },
-  customerDetails: {
-    name: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true },
-    address: { type: String, required: true },
-    notes: { type: String },
-  },
-  paymentMethod: { type: String, required: true },
-  cancelReason: {
-    reason: { type: String }, // Lý do hủy đơn
-    canceledAt: { type: Date }, // Thời điểm hủy
-    canceledBy: { type: String }, // Người thực hiện hủy
-  },
-  confirmedAt: { type: Date }, // Thời điểm xác nhận đơn hàng
-  confirmedBy: { type: String }, // Người xác nhận đơn hàng
-  receivedAt: { type: Date }, // Thời điểm nhận hàng
-  receivedBy: { type: String }, // Người xác nhận đã nhận
-});
+  { timestamps: true }
+);
 
+// Create and export the Order model
 const Order = mongoose.model<IOrder>("Order", orderSchema);
-
 export default Order;
