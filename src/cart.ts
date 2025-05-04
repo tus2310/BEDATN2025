@@ -5,7 +5,7 @@ import {
   Variant as ProductVariant,
 } from "./product"; // Import interfaces
 
-// Xác định giao diện và lược đồ SubVariant
+// Define SubVariant interface and schema
 interface ISubVariant {
   specification: string;
   value: string;
@@ -16,10 +16,10 @@ const subVariantSchema = new Schema<ISubVariant>({
   value: { type: String },
 });
 
-// Xác định giao diện Sản phẩm cho các mục giỏ hàng đã điền
+// Define Product interface for populated cart items
 interface IProduct extends Product {}
 
-// Xác định giao diện và lược đồ CartItem
+// Define CartItem interface and schema
 export interface ICartItem {
   productId: mongoose.Schema.Types.ObjectId;
   name: string;
@@ -30,7 +30,7 @@ export interface ICartItem {
   subVariant?: ISubVariant;
 }
 
-// Xác định loại cho CartItem đã điền (trong đó productId là Sản phẩm)
+// Define a type for populated CartItem (where productId is a Product)
 export interface IPopulatedCartItem extends Omit<ICartItem, "productId"> {
   productId: IProduct;
 }
@@ -40,7 +40,7 @@ export interface ICart extends Document {
   items: ICartItem[];
 }
 
-// Xác định kiểu cho Giỏ hàng đã điền
+// Define a type for the populated Cart
 export interface IPopulatedCart extends Omit<ICart, "items"> {
   items: IPopulatedCartItem[];
 }

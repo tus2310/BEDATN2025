@@ -17,7 +17,7 @@ import crypto from "crypto";
 import { createVNPayPaymentUrl, sortObject } from "./service/VNPay";
 import qs from "qs";
 import Product from "./product";
-
+import { calculateItemPrice, validateCartItems } from "./checkoutAPI";
 import ChangePassword from "./ChangePassword";
 import { Socket } from "socket.io";
 import DeactivationHistory from "./DeactivationHistory";
