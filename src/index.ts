@@ -1115,8 +1115,11 @@ router.post("/api/orders", async (req: Request, res: Response) => {
       if (!product) {
         return res.status(404).json({
           message: `Sản phẩm không tồn tại: ${item.productId}`,
-        });
-      }
+        })
+        if (!product) {
+          return res.status(404).json({
+            message: `Sản phẩm không tồn tại: ${item.productId}`,
+          });
 
       // Find the variant by color
       const variant = product.variants.find((v) => v.color === item.color);
@@ -1304,6 +1307,9 @@ app.put("/updatePost/:id", async (req: Request, res: Response) => {
     if (!updatedPost) {
       return res.status(404).json({ message: "Không tìm thấy bài viết." });
     }
+    if (updatedPost) {
+      return res.status(404).json({ message: "bài viết ko tồn tại ." });
+    }
 
     res.status(200).json(updatedPost);
   } catch (error) {
@@ -1402,33 +1408,33 @@ app.put("/orders-list/:orderId", async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ" });
   }
 });
-app.get("/orders/:orderId", async (req: Request, res: Response) => {
-  const { orderId } = req.params;
+// app.get("/orders/:orderId", async (req: Request, res: Response) => {
+//   const { orderId } = req.params;
 
-  try {
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({ message: "Invalid order ID format" });
-    }
+//   try {
+//     if (!mongoose.Types.ObjectId.isValid(orderId)) {
+//       return res.status(400).json({ message: "Invalid order ID format" });
+//     }
 
-    const order = await Order.findById(orderId)
-      .populate("items.productId", "name price img")
-      .exec();
+//     const order = await Order.findById(orderId)
+//       .populate("items.productId", "name price img")
+//       .exec();
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
+//     if (!order) {
+//       return res.status(404).json({ message: "Order not found" });
+//     }
 
-    res.status(200).json(order);
-  } catch (error) {
-    console.error("Error fetching order detail:", error);
-    res.status(500).json({ message: "Failed to fetch order detail", error });
-  }
-});
+//     res.status(200).json(order);
+//   } catch (error) {
+//     console.error("Error fetching order detail:", error);
+//     res.status(500).json({ message: "Failed to fetch order detail", error });
+//   }
+// });
 app.get("/api/stats", async (req, res) => {
   try {
     // Product Statistics
-    const totalProducts = await Product.countDocuments();
-    const activeProducts = await Product.countDocuments({ status: true });
+    const totalProduct = await Product.countDocuments();
+    const activeProduct = await Product.countDocuments({ status: true });
     const productAggregation = await Product.aggregate([
       { $unwind: "$variants" },
       { $unwind: "$variants.subVariants" },
@@ -1476,8 +1482,8 @@ app.get("/api/stats", async (req, res) => {
 
     const stats = {
       products: {
-        totalProducts,
-        activeProducts,
+        totalProduct,
+        activeProduct,
         totalVariants,
         totalStock,
       },
@@ -1524,23 +1530,6 @@ app.post("/create-payment", async (req: Request, res: Response) => {
     // });
     // console.log(order, "order");
 
-    const paymentUrl = createVNPayPaymentUrl({
-      Id: userId,
-      customerDetails: customerDetails,
-      items: Items,
-      amount: amount,
-      bankCode,
-      req,
-    });
-    console.log("Payment URL generated:", paymentUrl);
-
-    return res.status(200).json({ paymentUrl });
-  } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({ message: "Có lỗi xảy ra, vui lòng thử lại" });
-  }
-});
-
 const vnp_TmnCode = process.env.VNP_TMNCODE || "6KV33Z7O";
 const vnp_HashSecret =
   process.env.VNP_HASHSECRET || "HID072I1H7DJ6HO5O92JMV2WX2HMDQRD";
@@ -1549,33 +1538,33 @@ let vnp_Url: any =
 const vnp_ReturnUrl =
   process.env.VNP_RETURNURL || "http://localhost:3000/success";
 
-app.get("/vnpay_return", function (req, res, next) {
-  let vnp_Params = req.query;
+// app.get("/vnpay_return", function (req, res, next) {
+//   let vnp_Params = req.query;
 
-  let secureHash = vnp_Params["vnp_SecureHash"];
+//   let secureHash = vnp_Params["vnp_SecureHash"];
 
-  delete vnp_Params["vnp_SecureHash"];
-  delete vnp_Params["vnp_SecureHashType"];
+//   delete vnp_Params["vnp_SecureHash"];
+//   delete vnp_Params["vnp_SecureHashType"];
 
-  vnp_Params = sortObject(vnp_Params);
+//   vnp_Params = sortObject(vnp_Params);
 
-  let config = require("config");
-  let tmnCode = vnp_TmnCode;
-  let secretKey = vnp_TmnCode;
+//   let config = require("config");
+//   let tmnCode = vnp_TmnCode;
+//   let secretKey = vnp_TmnCode;
 
-  let querystring = require("qs");
-  let signData = querystring.stringify(vnp_Params, { encode: false });
-  let crypto = require("crypto");
-  let hmac = crypto.createHmac("sha512", secretKey);
-  let signed = hmac.update(new Buffer(signData, "utf-8")).digest("hex");
-  console.log("tsest vpay", vnp_Params["vnp_ResponseCode"]);
+//   let querystring = require("qs");
+//   let signData = querystring.stringify(vnp_Params, { encode: false });
+//   let crypto = require("crypto");
+//   let hmac = crypto.createHmac("sha512", secretKey);
+//   let signed = hmac.update(new Buffer(signData, "utf-8")).digest("hex");
+//   console.log("tsest vpay", vnp_Params["vnp_ResponseCode"]);
 
-  if (secureHash === signed) {
-    res.render("success", { code: vnp_Params["vnp_ResponseCode"] });
-  } else {
-    res.render("success", { code: "97" });
-  }
-});
+//   if (secureHash === signed) {
+//     res.render("success", { code: vnp_Params["vnp_ResponseCode"] });
+//   } else {
+//     res.render("success", { code: "97" });
+//   }
+// });
 
 app.post("/order/confirm", async (req: Request, res: Response) => {
   const { userId, items, amount, paymentMethod, customerDetails } = req.body;
@@ -1610,103 +1599,48 @@ app.post("/order/confirm", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/order/confirmvnpay", async (req: Request, res: Response) => {
-  try {
-    const {
-      userId,
-      vnp_Amount,
-      vnp_OrderInfo,
-      vnp_ResponseCode,
-      vnp_TransactionNo,
-      paymentMethod,
-    } = req.body;
 
-    if (
-      !userId ||
-      !vnp_Amount ||
-      !vnp_ResponseCode ||
-      !vnp_TransactionNo ||
-      !paymentMethod
-    ) {
-      return res.status(400).json({ message: "thiếu thông tin" });
-    }
 
-    if (vnp_ResponseCode !== "00") {
-      // const updatedOrder = await Order.findOneAndUpdate(
-      //   { userId, status: "pending" },
-      //   {paymentMethod: "Thanh toán khi nhận hàng"},
-      //   { paymentstatus: "Chưa Thanh toán", magiaodich: vnp_TransactionNo },
-      //   { new: true, sort: { createdAt: -1 } }
-      // );
-      return res.status(400).json({ message: "thanh toán thất bại" });
-    }
+// app.post("/api/orders/:orderId/cancel", async (req, res) => {
+//   const { orderId } = req.params;
+//   const { reason, canceledBy } = req.body; // Lấy lý do hủy và người thực hiện từ body
 
-    const cartUpdate = await Cart.findOneAndUpdate({ userId }, { items: [] });
-    if (!cartUpdate) {
-      return res.status(404).json({ message: "không tìm thấy giỏ hàng" });
-    }
+//   try {
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({ message: "Order not found." });
+//     }
 
-    const updatedOrder = await Order.findOneAndUpdate(
-      { userId, status: "pending" },
-      { paymentstatus: "Đã Thanh toán", magiaodich: vnp_TransactionNo },
-      { new: true, sort: { createdAt: -1 } }
-    );
+//     if (order.status === "cancelled") {
+//       return res.status(400).json({ message: "Order is already cancelled." });
+//     }
 
-    if (!updatedOrder) {
-      return res.status(404).json({ message: "Đơn hàng ko tồn tại." });
-    }
+//     // Cập nhật trạng thái hủy đơn và thông tin chi tiết hủy
+//     order.status = "cancelled";
+//     order.cancelReason = {
+//       reason: reason || "No reason provided", // Lý do hủy
+//       canceledAt: new Date(), // Thời điểm hủy
+//       canceledBy: canceledBy || "Unknown", // Người thực hiện hủy
+//     };
 
-    return res
-      .status(201)
-      .json({ message: "Đơn hàng đặt thành công.", order: updatedOrder });
-  } catch (error) {
-    console.error("Error updating order:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to update the order.", error });
-  }
-});
+//     // Cập nhật số lượng sản phẩm trong kho
+//     const updatePromises = order.items.map((item) => {
+//       return Product.findByIdAndUpdate(
+//         item.productId,
+//         { $inc: { soLuong: item.quantity } },
+//         { new: true }
+//       );
+//     });
 
-app.post("/api/orders/:orderId/cancel", async (req, res) => {
-  const { orderId } = req.params;
-  const { reason, canceledBy } = req.body; // Lấy lý do hủy và người thực hiện từ body
+//     await Promise.all(updatePromises);
+//     await order.save();
 
-  try {
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found." });
-    }
-
-    if (order.status === "cancelled") {
-      return res.status(400).json({ message: "Order is already cancelled." });
-    }
-
-    // Cập nhật trạng thái hủy đơn và thông tin chi tiết hủy
-    order.status = "cancelled";
-    order.cancelReason = {
-      reason: reason || "No reason provided", // Lý do hủy
-      canceledAt: new Date(), // Thời điểm hủy
-      canceledBy: canceledBy || "Unknown", // Người thực hiện hủy
-    };
-
-    // Cập nhật số lượng sản phẩm trong kho
-    const updatePromises = order.items.map((item) => {
-      return Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { soLuong: item.quantity } },
-        { new: true }
-      );
-    });
-
-    await Promise.all(updatePromises);
-    await order.save();
-
-    res.json({ message: "Order cancelled successfully", order });
-  } catch (error) {
-    console.error("Error cancelling order:", error);
-    res.status(500).json({ message: "Failed to cancel order." });
-  }
-});
+//     res.json({ message: "Order cancelled successfully", order });
+//   } catch (error) {
+//     console.error("Error cancelling order:", error);
+//     res.status(500).json({ message: "Failed to cancel order." });
+//   }
+// });
 app.post(
   "/api/orders/:orderId/confirm",
   async (req: Request, res: Response) => {
@@ -1765,21 +1699,7 @@ app.get("/comments/:productId", async (req, res) => {
       .status(500)
       .json({ message: "Lỗi Bạn không thể truy xuất bình luận !!!" });
   }
-});
-app.get("/api/products/:productId", async (req: Request, res: Response) => {
-  try {
-    const { productId } = req.params;
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    res.json(product);
-  } catch (error) {
-    console.error("Error fetching product details:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
 });
 
 app.put("/api/cart/:userId", async (req, res) => {
