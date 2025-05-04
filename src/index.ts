@@ -234,11 +234,22 @@ app.post("/cart/add", async (req: Request, res: Response) => {
   const { userId, items } = req.body;
 
   // Validate userId
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId format" });
+  }
+
+  // Validate items array
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: "Items array cannot be empty" });
+  }
 
   // Destructure the first item (assuming single item addition)
   const { productId, name, price, img, quantity, color, subVariant } = items[0];
 
   // Validate productId
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    return res.status(400).json({ message: "Invalid productId format" });
+  }
 
   // Validate quantity
   if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -314,13 +325,118 @@ app.post("/cart/add", async (req: Request, res: Response) => {
 });
 
 app.delete("/cart/remove", async (req: Request, res: Response) => {
-  const { userId, productId } = req.body;
+  const { userId, productId, color, subVariant } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ message: "Invalid userId format" });
+  try {
+    // Xác thực dữ liệu yêu cầu
+    if (!userId || !productId || !color) {
+      return res.status(400).json({
+        message:
+          "Thiếu các trường bắt buộc: userId, productId và color là bắt buộc",
+      });
+    }
+
+    // Xác thực userId và productId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Định dạng userId không hợp lệ" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res
+        .status(400)
+        .json({ message: "Định dạng productId không hợp lệ" });
+    }
+
+    // Xác thực subVariant nếu được cung cấp
+    if (subVariant && (!subVariant.specification || !subVariant.value)) {
+      return res.status(400).json({
+        message: "Biến thể phụ phải bao gồm cả thông số kỹ thuật và giá trị",
+      });
+    }
+
+    // Lấy giỏ hàng của người dùng
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({ message: "Không tìm thấy giỏ hàng" });
+    }
+
+    // Xác định mục cần xóa
+    const itemKey = subVariant
+      ? `${productId}-${color}-${subVariant.specification}-${subVariant.value}`
+      : `${productId}-${color}`;
+
+    // Lọc ra mục cần xóa
+    const updatedItems = cart.items.filter((item: any) => {
+      const cartItemKey = item.subVariant
+        ? `${item.productId}-${item.color}-${item.subVariant.specification}-${item.subVariant.value}`
+        : `${item.productId}-${item.color}`;
+      return cartItemKey !== itemKey;
+    });
+
+    // Cập nhật giỏ hàng với các mục còn lại
+    cart.items = updatedItems;
+    await cart.save();
+
+    res
+      .status(200)
+      .json({ message: "Mục đã xóa khỏi giỏ hàng thành công", cart });
+  } catch (error: any) {
+    console.error("Lỗi khi xóa mục khỏi giỏ hàng:", error);
+    res.status(500).json({
+      message: "Không xóa được mục khỏi giỏ hàng",
+      error: error.message,
+    });
   }
+});
 
- 
+app.get("/cart/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Validate id
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Định dạng userId không hợp lệ" });
+    }
+
+    console.log(`Đang lấy giỏ hàng cho userId: ${id}`);
+    const cart = await Cart.findOne({ userId: id }); // Removed .populate("items.productId")
+    console.log(`Đã lấy giỏ hàng:`, cart);
+
+    if (!cart) {
+      return res.status(404).json({ message: "Giỏ hàng trống", isEmpty: true });
+    }
+
+    res.json(cart);
+  } catch (error: any) {
+    console.error("Lỗi khi lấy giỏ hàng:", error);
+    res
+      .status(500)
+      .json({ message: "Lỗi máy chủ nội bộ", error: error.message });
+  }
+});
+
+// Login
+app.post("/login", async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found!",
+      });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({
+        message: "Account is disabled. Please contact support.",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid password!" });
+    }
 
     const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
       expiresIn: process.env.EXPIRES_TOKEN,
@@ -667,11 +783,18 @@ app.put("/product/activate/:id", async (req: Request, res: Response) => {
 //  Categoty : Get
 app.get("/category", async (req: Request, res: Response) => {
   try {
-    const categories = await category.find();
-    res.json(categories);
+    const { status } = req.query;
+
+    const query: any = {};
+    if (status) {
+      query.status = status; // Filter by status (e.g., "active" or "deactive")
+    }
+
+    const categories = await category.find(query);
+    res.status(200).json(categories);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Lỗi khi lấy thông tin danh mục" });
+    console.error("Error retrieving categories:", error);
+    res.status(500).json({ message: "Failed to retrieve categories", error });
   }
 });
 app.get("/category/:id", async (req: Request, res: Response) => {
@@ -731,33 +854,6 @@ app.delete("/product/:id", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi khi xóa SP" });
   }
 });
-
-// gui mail
-async function sendDeactivationEmail(userEmail: string, reason: string) {
-  const transporter = nodemailer.createTransport({
-    service: "Gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  const mailOptions = {
-    from: "Beautiful House Admin",
-    to: userEmail,
-    subject: "Tài khoản của bạn đã bị vô hiệu hóa",
-    text: `Chào bạn,
-
-Tài khoản của bạn đã bị vô hiệu hóa vì lý do: ${reason}.
-Nếu bạn có thắc mắc, vui lòng liên hệ với chúng tôi qua Email : fptdatn2025@gmail.com để khôi phục Email.
-
-Trân trọng,
-`,
-  };
-
-  await transporter.sendMail(mailOptions);
-}
-
 // Vô hiệu hóa User
 app.put("/user/deactivate/:id", async (req: Request, res: Response) => {
   try {
@@ -778,14 +874,6 @@ app.put("/user/deactivate/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
 
-    // Gửi email thông báo
-    try {
-      await sendDeactivationEmail(user.email, reason);
-    } catch (emailError) {
-      console.error("Error sending email:", emailError);
-      // Không trả về lỗi 500 nếu gửi email không thành công, nhưng có thể log lại
-    }
-
     // Notify via WebSocket
     const socketId = userSockets[user._id];
     if (socketId) {
@@ -794,7 +882,6 @@ app.put("/user/deactivate/:id", async (req: Request, res: Response) => {
       });
       delete userSockets[user._id];
     }
-
     // Send response to frontend to clear session storage
     res.json({
       message: "Người dùng đã được vô hiệu hóa, vui lòng đăng nhập lại.",
@@ -2005,9 +2092,11 @@ app.post("/vouchers/add", async (req: Request, res: Response) => {
       quantity,
     });
     await voucher.save();
-    res.status(201).json({ message: "Voucher created successfully", voucher });
+    res
+      .status(201)
+      .json({ message: "Phiếu mua hàng đã được tạo thành công", voucher });
   } catch (error) {
-    res.status(400).json({ message: "Error creating voucher", error });
+    res.status(400).json({ message: "Lỗi khi tạo phiếu giảm giá", error });
   }
 });
 
@@ -2016,18 +2105,19 @@ app.get("/vouchers", async (req: Request, res: Response) => {
     const vouchers = await Voucher.find();
     res.json(vouchers);
   } catch (error) {
-    console.error("Error fetching vouchers:", error);
-    res.status(500).json({ message: "Failed to retrieve vouchers" });
+    console.error("Lỗi khi tải phiếu giảm giá:", error);
+    res.status(500).json({ message: "Không lấy được phiếu giảm giá" });
   }
 });
 
 app.get("/vouchers/:id", async (req: Request, res: Response) => {
   try {
     const voucher = await Voucher.findById(req.params.id);
-    if (!voucher) return res.status(404).json({ message: "Voucher not found" });
+    if (!voucher)
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     res.status(200).json(voucher);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching voucher", error });
+    res.status(500).json({ message: "Lỗi khi tải phiếu giảm giá", error });
   }
 });
 
@@ -2043,13 +2133,13 @@ app.put("/vouchers/:id", async (req, res) => {
     );
 
     if (!updatedVoucher) {
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     }
 
     res.json(updatedVoucher);
   } catch (error) {
-    console.error("Error updating voucher:", error);
-    res.status(500).json({ message: "Error updating voucher" });
+    console.error("Lỗi khi cập nhật phiếu giảm giá:", error);
+    res.status(500).json({ message: "Lỗi khi cập nhật phiếu giảm giá" });
   }
 });
 
@@ -2057,12 +2147,12 @@ app.delete("/vouchers/:id", async (req: Request, res: Response) => {
   try {
     const deletedVoucher = await Voucher.findByIdAndDelete(req.params.id);
     if (!deletedVoucher)
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     res
       .status(200)
-      .json({ message: "Voucher deleted successfully", deletedVoucher });
+      .json({ message: "Đã xóa phiếu giảm giá thành công", deletedVoucher });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting voucher", error });
+    res.status(500).json({ message: "Lỗi khi xóa phiếu giảm giá", error });
   }
 });
 
@@ -2072,16 +2162,18 @@ app.put("/vouchers/:id/toggle", async (req: Request, res: Response) => {
 
     const voucher = await Voucher.findById(id);
     if (!voucher) {
-      return res.status(404).json({ message: "Voucher not found" });
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
     }
 
     voucher.isActive = !voucher.isActive;
     await voucher.save();
 
-    res.status(200).json({ message: "Voucher status updated", voucher });
+    res
+      .status(200)
+      .json({ message: "Trạng thái phiếu giảm giá đã cập nhật", voucher });
   } catch (error) {
-    console.error("Error toggling voucher status:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Lỗi khi chuyển đổi trạng thái phiếu giảm giá:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
   }
 });
 
@@ -2089,28 +2181,40 @@ app.post("/voucher/apply", async (req: Request, res: Response) => {
   const { code } = req.body;
 
   try {
-    const voucher = await Voucher.findOne({ code, isActive: true });
+    // Xác thực dữ liệu yêu cầu
+    if (!code) {
+      return res.status(400).json({ message: "Cần có mã phiếu giảm giá" });
+    }
 
+    // Tìm phiếu giảm giá theo mã
+    const voucher = await Voucher.findOne({ code });
     if (!voucher) {
+      return res.status(404).json({ message: "Không tìm thấy phiếu giảm giá" });
+    }
+
+    // Kiểm tra xem phiếu giảm giá có hoạt động và chưa hết hạn không
+    if (!voucher.isActive || voucher.expirationDate < new Date()) {
       return res
-        .status(404)
-        .json({ message: "Invalid or expired voucher code." });
+        .status(400)
+        .json({ message: "Phiếu giảm giá không có hiệu lực hoặc đã hết hạn" });
     }
 
-    if (voucher.quantity <= 0 || new Date() > voucher.expirationDate) {
-      return res.status(400).json({ message: "Voucher is no longer valid." });
+    // Kiểm tra xem phiếu giảm giá còn số lượng không
+    if (voucher.quantity <= 0) {
+      return res.status(400).json({ message: "Phiếu giảm giá đã hết hàng" });
     }
 
-    // Reduce quantity and deactivate if it reaches 0
-    voucher.quantity -= 1;
-    if (voucher.quantity === 0) {
-      voucher.isActive = false;
-    }
-    await voucher.save();
-
-    res.json({ discountAmount: voucher.discountAmount });
+    // Trả lại số tiền giảm giá
+    res.status(200).json({
+      discountAmount: voucher.discountAmount,
+      discountPercentage: voucher.discountPercentage || undefined,
+      description: voucher.description || undefined,
+    });
   } catch (error) {
-    res.status(500).json({ message: "An error occurred.", error });
+    console.error("Lỗi khi áp dụng phiếu giảm giá:", error);
+    res
+      .status(500)
+      .json({ message: "Không áp dụng được phiếu giảm giá", error });
   }
 });
 
@@ -2148,7 +2252,7 @@ app.get("/user/:id/status", async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Cổ Đông FPT đang lắng nghe: ${PORT}`);
+  console.log(`Server đang lắng nghe tại cổng: ${PORT}`);
 });
 
 // Ngân hàng	NCB
